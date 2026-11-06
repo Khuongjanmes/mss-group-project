@@ -1,0 +1,68 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    loadbalancer:
+      cache:
+        # Instance mới hoặc đã chết được cập nhật nhanh hơn mặc định 35 giây.
+        ttl: 5s
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 3000
+            response-timeout: 15s
+          routes:
+            - id: identity-service
+              uri: lb://identity-service
+              predicates:
+                - Path=/api/auth/**,/api/users/**
+            - id: event-service
+              uri: lb://event-service
+              predicates:
+                - Path=/api/events/**,/api/categories/**,/api/venues/**
+            - id: ticket-service
+              uri: lb://ticket-service
+              predicates:
+                - Path=/api/ticket-types/**,/api/tickets/**
+            - id: order-service
+              uri: lb://order-service
+              predicates:
+                - Path=/api/orders/**
+            - id: payment-service
+              uri: lb://payment-service
+              predicates:
+                - Path=/api/payments/**
+            - id: notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=/api/notifications/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+openevent:
+  jwt:
+    # Bắt buộc. Cùng giá trị với Identity Service, tối thiểu 32 byte.
+    secret: ${JWT_SECRET}
+    issuer: openevent-identity
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

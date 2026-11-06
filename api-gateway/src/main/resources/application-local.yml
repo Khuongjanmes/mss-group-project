@@ -1,0 +1,4 @@
+# Chỉ dùng khi chạy trên máy cá nhân: mvn spring-boot:run -Dspring-boot.run.profiles=local
+openevent:
+  jwt:
+    secret: ${JWT_SECRET:local-dev-only-secret-do-not-use-in-demo-0123456789}

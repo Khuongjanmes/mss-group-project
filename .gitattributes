@@ -1,0 +1,7 @@
+* text=auto
+# Chạy trong Linux container hoặc Git Bash: phải giữ LF kể cả khi clone trên Windows.
+*.sh text eol=lf
+mvnw text eol=lf
+Dockerfile text eol=lf
+*.cmd text eol=crlf
+*.docx binary

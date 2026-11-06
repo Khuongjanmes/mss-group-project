@@ -1,0 +1,76 @@
+server:
+  port: ${SERVER_PORT:8085}
+  shutdown: graceful
+
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/payment_db
+    username: ${DB_USER:openevent}
+    password: ${DB_PASSWORD:openevent}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:openevent}
+    password: ${RABBITMQ_PASSWORD:openevent}
+    listener:
+      simple:
+        # Message lỗi được thử lại 3 lần rồi chuyển vào dead-letter queue, không lặp vô hạn.
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-retries: 2
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 5000
+    circuitbreaker:
+      resilience4j:
+        # Thời gian chờ do read-timeout của Feign quyết định, không dùng giới hạn 1 giây mặc định.
+        disable-time-limiter: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        # Lỗi 4xx (như 409 hết vé) là kết quả nghiệp vụ, không phải service hỏng.
+        ignore-exceptions:
+          - feign.FeignException$FeignClientException
+
+openevent:
+  security:
+    public-paths:
+      - GET /api/payments/vnpay-return

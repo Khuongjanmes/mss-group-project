@@ -1,0 +1,32 @@
+server:
+  port: ${SERVER_PORT:8761}
+
+spring:
+  application:
+    name: eureka-server
+
+eureka:
+  instance:
+    hostname: ${EUREKA_HOSTNAME:localhost}
+  client:
+    # Chạy một node: không đăng ký với chính nó.
+    register-with-eureka: false
+    fetch-registry: false
+  server:
+    # Môi trường dev/demo: service tắt thì gỡ khỏi registry nhanh để Gateway không gọi vào instance đã chết.
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 5000
+    wait-time-in-ms-when-sync-empty: 0
+    # Registry đọc trực tiếp, không trễ tới 30 giây do read-only cache.
+    use-read-only-response-cache: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true

@@ -1,0 +1,3 @@
+com.openevent.common.web.WebAutoConfiguration
+com.openevent.common.security.ServiceSecurityAutoConfiguration
+com.openevent.common.messaging.MessagingAutoConfiguration
