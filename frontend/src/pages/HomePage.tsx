@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 
 import { errorMessage } from '../api/client'
 import { searchEvents, type EventItem } from '../api/events'
@@ -26,7 +27,11 @@ export default function HomePage() {
         {events.map((event) => (
           <li key={event.id} className="rounded-xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <p className="text-xs font-semibold text-accent-foreground">{event.category.name}</p>
-            <h2 className="line-clamp-2 font-semibold">{event.title}</h2>
+            <h2 className="line-clamp-2 font-semibold">
+              <Link to={`/events/${event.id}`} className="hover:text-primary hover:underline">
+                {event.title}
+              </Link>
+            </h2>
             <p className="mt-1 text-[13px] text-muted-foreground">
               {new Date(event.startTime).toLocaleString('vi-VN')} · {event.venue.city}
             </p>
