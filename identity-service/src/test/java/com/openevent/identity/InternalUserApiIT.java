@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,6 +41,18 @@ class InternalUserApiIT extends IdentityIntegrationTest {
     @Test
     void unknownUserIs404() {
         assertThat(send("GET", "/internal/users/" + UUID.randomUUID(), null, null).status()).isEqualTo(404);
+    }
+
+    @Test
+    void findsUserByEmailIgnoringCase() {
+        String email = uniqueEmail();
+        String id = register(email).body().path("user").path("id").asString();
+
+        Response found = send("GET", "/internal/users/by-email?email=" + email.toUpperCase(Locale.ROOT), null, null);
+
+        assertThat(found.status()).isEqualTo(200);
+        assertThat(found.body().path("id").asString()).isEqualTo(id);
+        assertThat(send("GET", "/internal/users/by-email?email=" + uniqueEmail(), null, null).status()).isEqualTo(404);
     }
 
     @Test

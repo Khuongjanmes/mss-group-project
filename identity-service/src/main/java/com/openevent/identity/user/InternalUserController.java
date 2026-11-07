@@ -8,12 +8,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.openevent.identity.user.dto.UserBatchRequest;
 import com.openevent.identity.user.dto.UserContactResponse;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
 /** API cho các service khác gọi qua Feign. Gateway chặn /internal/** từ bên ngoài. */
@@ -27,6 +30,12 @@ public class InternalUserController {
     @GetMapping("/{id}")
     public UserContactResponse getById(@PathVariable UUID id) {
         return userService.getContact(id);
+    }
+
+    /** Event mời thành viên tổ chức bằng email; email so khớp không phân biệt hoa thường như lúc đăng nhập. */
+    @GetMapping("/by-email")
+    public UserContactResponse getByEmail(@RequestParam @NotBlank @Size(max = 254) String email) {
+        return userService.getContactByEmail(email);
     }
 
     @PostMapping("/batch")

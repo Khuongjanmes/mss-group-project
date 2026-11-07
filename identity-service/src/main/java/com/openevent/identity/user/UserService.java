@@ -2,6 +2,7 @@ package com.openevent.identity.user;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -103,6 +104,12 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserContactResponse getContact(UUID id) {
         return UserContactResponse.from(requireUser(id));
+    }
+
+    @Transactional(readOnly = true)
+    public UserContactResponse getContactByEmail(String email) {
+        return users.findByEmail(email.trim().toLowerCase(Locale.ROOT)).map(UserContactResponse::from)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
     }
 
     @Transactional(readOnly = true)
