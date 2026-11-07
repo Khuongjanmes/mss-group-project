@@ -1,0 +1,280 @@
+package com.openevent.event;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.rabbitmq.RabbitMQContainer;
+
+import com.openevent.common.messaging.Messaging;
+import com.openevent.common.messaging.events.EventCancelled;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/** Luồng nghiệp vụ của Event qua HTTP thật, PostgreSQL và RabbitMQ thật. */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "eureka.client.enabled=false",
+        "openevent.events.completion-interval=PT0.2S"})
+class EventApiIT {
+
+    @ServiceConnection
+    static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:16-alpine");
+
+    @ServiceConnection
+    static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:3.13-management-alpine");
+
+    static {
+        DB.start();
+        RABBIT.start();
+    }
+
+    record Caller(UUID id, String roles) {
+    }
+
+    record Response(int status, JsonNode body) {
+        String code() {
+            return body.path("code").asString();
+        }
+
+        String text(String field) {
+            return body.path(field).asString();
+        }
+    }
+
+    private final HttpClient http = HttpClient.newHttpClient();
+    private final Caller admin = new Caller(UUID.randomUUID(), "ADMIN");
+    private final Caller organizer = new Caller(UUID.randomUUID(), "ATTENDEE,ORGANIZER");
+    private final Caller otherOrganizer = new Caller(UUID.randomUUID(), "ORGANIZER");
+    private final Caller attendee = new Caller(UUID.randomUUID(), "ATTENDEE");
+
+    @LocalServerPort
+    int port;
+
+    @Autowired
+    JsonMapper json;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    @Autowired
+    RabbitTemplate rabbit;
+
+    @Autowired
+    AmqpAdmin amqp;
+
+    @Autowired
+    TopicExchange exchange;
+
+    private Response send(String method, String path, Object body, Caller caller) {
+        try {
+            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                    .header("Content-Type", "application/json")
+                    .method(method, body == null ? HttpRequest.BodyPublishers.noBody()
+                            : HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+            if (caller != null) {
+                request.header("X-User-Id", caller.id().toString()).header("X-User-Roles", caller.roles());
+            }
+            HttpResponse<String> response = http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+            JsonNode node = response.body().isBlank() ? json.createObjectNode() : json.readTree(response.body());
+            return new Response(response.statusCode(), node);
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    private String createCategory(String name) {
+        Response response = send("POST", "/api/categories", Map.of("name", name), admin);
+        assertThat(response.status()).isEqualTo(201);
+        return response.text("id");
+    }
+
+    private String createVenue(String city) {
+        Response response = send("POST", "/api/venues",
+                Map.of("name", "Hội trường A", "address", "1 Lê Duẩn", "city", city, "capacity", 500), organizer);
+        assertThat(response.status()).isEqualTo(201);
+        return response.text("id");
+    }
+
+    private Map<String, Object> eventBody(String title, String categoryId, String venueId, Instant start, Instant end) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("title", title);
+        body.put("description", "Mô tả");
+        body.put("categoryId", categoryId);
+        body.put("venueId", venueId);
+        body.put("startTime", start.toString());
+        body.put("endTime", end.toString());
+        return body;
+    }
+
+    private Map<String, Object> futureEvent(String title, String city) {
+        Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
+        return eventBody(title, createCategory("Hội thảo " + UUID.randomUUID()), createVenue(city), start,
+                start.plus(3, ChronoUnit.HOURS));
+    }
+
+    private String createDraft(Caller owner, Map<String, Object> body) {
+        Response response = send("POST", "/api/events", body, owner);
+        assertThat(response.status()).isEqualTo(201);
+        assertThat(response.text("status")).isEqualTo("DRAFT");
+        return response.text("id");
+    }
+
+    private String publish(Caller owner, Map<String, Object> body) {
+        String id = createDraft(owner, body);
+        assertThat(send("PUT", "/api/events/" + id + "/submit", null, owner).text("status")).isEqualTo("PENDING_APPROVAL");
+        assertThat(send("PUT", "/api/events/" + id + "/approve", null, admin).text("status")).isEqualTo("PUBLISHED");
+        return id;
+    }
+
+    @Test
+    void categorySlugIsGeneratedAndDuplicateNameIsRejected() {
+        String name = "Âm nhạc Đường phố " + UUID.randomUUID().toString().substring(0, 8);
+        Response created = send("POST", "/api/categories", Map.of("name", name), admin);
+
+        assertThat(created.text("slug")).startsWith("am-nhac-duong-pho-");
+        assertThat(send("POST", "/api/categories", Map.of("name", name.toUpperCase()), admin).code())
+                .isEqualTo("CATEGORY_EXISTS");
+        assertThat(send("POST", "/api/categories", Map.of("name", "X"), organizer).status()).isEqualTo(403);
+    }
+
+    @Test
+    void fullLifecycleFromDraftToPublicListing() {
+        String city = "Đà Nẵng " + UUID.randomUUID();
+        String id = createDraft(organizer, futureEvent("Workshop Spring", city));
+
+        assertThat(send("GET", "/api/events/" + id, null, null).status()).isEqualTo(404);
+        assertThat(send("GET", "/api/events/" + id, null, organizer).status()).isEqualTo(200);
+
+        send("PUT", "/api/events/" + id + "/submit", null, organizer);
+        Response rejected = send("PUT", "/api/events/" + id + "/reject", Map.of("reason", "Thiếu ảnh bìa"), admin);
+        assertThat(rejected.text("status")).isEqualTo("REJECTED");
+        assertThat(rejected.text("rejectReason")).isEqualTo("Thiếu ảnh bìa");
+
+        Response resubmitted = send("PUT", "/api/events/" + id + "/submit", null, organizer);
+        assertThat(resubmitted.text("status")).isEqualTo("PENDING_APPROVAL");
+        assertThat(resubmitted.body().path("rejectReason").isNull()).isTrue();
+        assertThat(send("PUT", "/api/events/" + id + "/approve", null, admin).text("status")).isEqualTo("PUBLISHED");
+
+        Response listing = send("GET",
+                "/api/events?keyword=spring&city=" + URLEncoder.encode(city, StandardCharsets.UTF_8), null, null);
+        assertThat(listing.status()).isEqualTo(200);
+        assertThat(listing.body().path("totalElements").asLong()).isEqualTo(1);
+        assertThat(listing.body().path("content").get(0).path("id").asString()).isEqualTo(id);
+        assertThat(send("GET", "/api/events/" + id, null, null).status()).isEqualTo(200);
+    }
+
+    @Test
+    void onlyOwnerEditsAndOnlyWhileDraftOrRejected() {
+        Map<String, Object> body = futureEvent("Hội thảo AI", "Huế");
+        String id = createDraft(organizer, body);
+
+        assertThat(send("PUT", "/api/events/" + id, body, otherOrganizer).code()).isEqualTo("NOT_EVENT_OWNER");
+        assertThat(send("PUT", "/api/events/" + id, body, organizer).status()).isEqualTo(200);
+
+        send("PUT", "/api/events/" + id + "/submit", null, organizer);
+        assertThat(send("PUT", "/api/events/" + id, body, organizer).code()).isEqualTo("EVENT_STATUS_INVALID");
+        assertThat(send("DELETE", "/api/events/" + id, null, organizer).code()).isEqualTo("EVENT_STATUS_INVALID");
+    }
+
+    @Test
+    void timeRulesAreEnforced() {
+        Map<String, Object> body = futureEvent("Sai giờ", "Hà Nội");
+        Instant start = Instant.parse((String) body.get("startTime"));
+
+        body.put("endTime", start.minus(1, ChronoUnit.HOURS).toString());
+        assertThat(send("POST", "/api/events", body, organizer).code()).isEqualTo("INVALID_EVENT_TIME");
+
+        body.put("startTime", Instant.now().minus(1, ChronoUnit.DAYS).toString());
+        body.put("endTime", Instant.now().plus(1, ChronoUnit.DAYS).toString());
+        assertThat(send("POST", "/api/events", body, organizer).code()).isEqualTo("INVALID_EVENT_TIME");
+    }
+
+    @Test
+    void attendeeCannotCreateAndAdminCannotPublishDraftDirectly() {
+        Map<String, Object> body = futureEvent("Không quyền", "Huế");
+        assertThat(send("POST", "/api/events", body, attendee).status()).isEqualTo(403);
+
+        String id = createDraft(organizer, body);
+        assertThat(send("PUT", "/api/events/" + id + "/approve", null, admin).code()).isEqualTo("EVENT_STATUS_INVALID");
+        assertThat(send("PUT", "/api/events/" + id + "/approve", null, organizer).status()).isEqualTo(403);
+    }
+
+    @Test
+    void cancelPublishesEventCancelledAndOtherOrganizerCannotCancel() {
+        Queue probe = QueueBuilder.nonDurable("event-cancel-probe").autoDelete().build();
+        amqp.declareQueue(probe);
+        amqp.declareBinding(BindingBuilder.bind(probe).to(exchange).with(Messaging.EVENT_CANCELLED));
+        String id = publish(organizer, futureEvent("Sẽ hủy", "Đà Nẵng"));
+
+        assertThat(send("PUT", "/api/events/" + id + "/cancel", null, otherOrganizer).code()).isEqualTo("NOT_EVENT_OWNER");
+        assertThat(send("PUT", "/api/events/" + id + "/cancel", null, organizer).text("status")).isEqualTo("CANCELLED");
+
+        Object received = rabbit.receiveAndConvert("event-cancel-probe", Duration.ofSeconds(10).toMillis());
+        assertThat(received).isInstanceOfSatisfying(EventCancelled.class,
+                event -> assertThat(event.eventId()).isEqualTo(UUID.fromString(id)));
+        assertThat(send("PUT", "/api/events/" + id + "/cancel", null, organizer).code()).isEqualTo("EVENT_STATUS_INVALID");
+    }
+
+    @Test
+    void internalSummaryMatchesFeignContract() {
+        String id = publish(organizer, futureEvent("Nội bộ", "Huế"));
+
+        Response summary = send("GET", "/internal/events/" + id, null, null);
+
+        assertThat(summary.status()).isEqualTo(200);
+        assertThat(summary.text("organizerId")).isEqualTo(organizer.id().toString());
+        assertThat(summary.text("status")).isEqualTo("PUBLISHED");
+        assertThat(summary.body().has("startTime")).isTrue();
+        assertThat(summary.body().has("endTime")).isTrue();
+        assertThat(send("GET", "/internal/events/" + UUID.randomUUID(), null, null).code()).isEqualTo("EVENT_NOT_FOUND");
+    }
+
+    @Test
+    void categoryAndVenueInUseCannotBeDeleted() {
+        Map<String, Object> body = futureEvent("Đang dùng", "Huế");
+        createDraft(organizer, body);
+
+        assertThat(send("DELETE", "/api/categories/" + body.get("categoryId"), null, admin).code())
+                .isEqualTo("CATEGORY_IN_USE");
+        assertThat(send("DELETE", "/api/venues/" + body.get("venueId"), null, admin).code()).isEqualTo("VENUE_IN_USE");
+    }
+
+    @Test
+    void endedPublishedEventsBecomeCompleted() throws Exception {
+        String id = publish(organizer, futureEvent("Đã qua", "Huế"));
+        jdbc.update("update events set start_time = now() - interval '2 hours', end_time = now() - interval '1 hour' "
+                + "where id = ?::uuid", id);
+
+        Instant deadline = Instant.now().plusSeconds(10);
+        while (!"COMPLETED".equals(send("GET", "/api/events/" + id, null, null).text("status"))
+                && Instant.now().isBefore(deadline)) {
+            Thread.sleep(200);
+        }
+        assertThat(send("GET", "/api/events/" + id, null, null).text("status")).isEqualTo("COMPLETED");
+    }
+}

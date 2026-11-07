@@ -149,3 +149,24 @@ Lưu ý cho SPA:
 
 - Access token sống 15 phút, refresh token 7 ngày. Vai trò mới có hiệu lực từ lần refresh tiếp theo.
 - Mỗi refresh token chỉ dùng được một lần, và dùng lại token cũ sẽ thu hồi **mọi phiên** của tài khoản. Khi nhiều request cùng gặp 401, SPA chỉ được gọi refresh một lần rồi cho các request đó chờ kết quả.
+
+## API Event
+
+| Method | Đường dẫn | Quyền | Mô tả |
+| --- | --- | --- | --- |
+| GET | `/api/events?keyword&category&city&from&to&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601 |
+| GET | `/api/events/{id}` | Công khai | Sự kiện chưa công bố chỉ chủ sự kiện và ADMIN xem được |
+| GET | `/api/events/my?status` | ORGANIZER | Sự kiện của tôi, mọi trạng thái |
+| GET | `/api/events/admin?keyword&status` | ADMIN | Mọi sự kiện, ví dụ `status=PENDING_APPROVAL` để duyệt |
+| POST, PUT, DELETE | `/api/events`, `/api/events/{id}` | ORGANIZER (chủ sự kiện) | Tạo nháp; sửa, xóa khi DRAFT hoặc REJECTED |
+| PUT | `/api/events/{id}/submit` | ORGANIZER (chủ sự kiện) | DRAFT/REJECTED → PENDING_APPROVAL |
+| PUT | `/api/events/{id}/approve`, `/reject` | ADMIN | → PUBLISHED, hoặc → REJECTED kèm `{"reason"}` |
+| PUT | `/api/events/{id}/cancel` | Chủ sự kiện hoặc ADMIN | PUBLISHED → CANCELLED, phát `EventCancelled` |
+| GET | `/api/categories` | Công khai | Danh mục; slug sinh từ tên |
+| POST, PUT, DELETE | `/api/categories`, `/api/categories/{id}` | ADMIN | Không xóa được danh mục đang dùng |
+| GET | `/api/venues?city`, `/api/venues/{id}` | Công khai | Địa điểm |
+| POST | `/api/venues` | ORGANIZER, ADMIN | Thêm địa điểm |
+| PUT, DELETE | `/api/venues/{id}` | ADMIN | Không xóa được địa điểm đang dùng |
+| GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket |
+
+Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETED.
