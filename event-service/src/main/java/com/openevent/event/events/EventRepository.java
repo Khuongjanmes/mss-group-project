@@ -1,6 +1,7 @@
 package com.openevent.event.events;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -15,14 +16,17 @@ import org.springframework.data.repository.query.Param;
 
 public interface EventRepository extends JpaRepository<Event, UUID>, JpaSpecificationExecutor<Event> {
 
-    /** Nạp sẵn danh mục và địa điểm để danh sách không truy vấn thêm từng dòng. */
+    /** Nạp sẵn danh mục, địa điểm, tổ chức để danh sách không truy vấn thêm từng dòng. */
     @Override
-    @EntityGraph(attributePaths = {"category", "venue"})
+    @EntityGraph(attributePaths = {"category", "venue", "organization"})
     Page<Event> findAll(Specification<Event> spec, Pageable pageable);
 
     boolean existsByCategoryId(UUID categoryId);
 
     boolean existsByVenueId(UUID venueId);
+
+    boolean existsByOrganization_IdAndOrganizerIdAndStatusIn(UUID organizationId, UUID organizerId,
+            Collection<EventStatus> statuses);
 
     /** BR-05: sự kiện đã công bố quá giờ kết thúc chuyển sang COMPLETED. */
     @Modifying

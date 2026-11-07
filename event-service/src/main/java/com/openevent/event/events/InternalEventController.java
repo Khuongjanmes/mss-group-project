@@ -5,8 +5,10 @@ import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.openevent.event.events.dto.EventAccessResponse;
 import com.openevent.event.events.dto.EventSummaryResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -22,5 +24,10 @@ public class InternalEventController {
     @GetMapping("/{id}")
     public EventSummaryResponse getById(@PathVariable UUID id) {
         return eventService.summary(id);
+    }
+
+    @GetMapping("/{id}/access")
+    public EventAccessResponse access(@PathVariable UUID id, @RequestParam UUID userId) {
+        return eventService.access(id, userId);
     }
 }

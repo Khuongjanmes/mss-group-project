@@ -97,6 +97,7 @@ class GatewaySecurityConfig {
                         .pathMatchers("/api/events/**").hasAnyRole(ORGANIZER, ADMIN)
                         .pathMatchers("/api/categories/**").hasRole(ADMIN)
                         .pathMatchers("/api/venues/**").hasAnyRole(ORGANIZER, ADMIN)
+                        .pathMatchers("/api/organizations/**").hasRole(ORGANIZER)
 
                         .pathMatchers("/api/ticket-types/**").hasRole(ORGANIZER)
                         .pathMatchers(HttpMethod.POST, "/api/tickets/check-in").hasRole(ORGANIZER)

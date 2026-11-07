@@ -131,6 +131,9 @@ services:
         SERVICE: event-service
     environment:
       <<: *service-env
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     healthcheck:
       <<: *app-healthcheck
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8082/actuator/health"]

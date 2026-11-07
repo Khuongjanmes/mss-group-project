@@ -18,7 +18,7 @@ import jakarta.persistence.criteria.Predicate;
  * @param to giữ sự kiện bắt đầu trước mốc này
  */
 public record EventSearch(String keyword, String category, String city, Instant from, Instant to,
-        EventStatus status, UUID organizerId) {
+        EventStatus status, UUID organizerId, UUID organizationId) {
 
     private static final char ESCAPE = '\\';
 
@@ -30,6 +30,9 @@ public record EventSearch(String keyword, String category, String city, Instant 
             }
             if (organizerId != null) {
                 predicates.add(cb.equal(root.get("organizerId"), organizerId));
+            }
+            if (organizationId != null) {
+                predicates.add(cb.equal(root.get("organization").get("id"), organizationId));
             }
             if (hasText(keyword)) {
                 String pattern = "%" + escapeLike(keyword.trim().toLowerCase(Locale.ROOT)) + "%";

@@ -1,10 +1,12 @@
 package com.openevent.event.events;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,14 +17,20 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.openevent.common.security.AuthenticatedUser;
 import com.openevent.common.web.PageResponse;
 import com.openevent.event.events.dto.EventRequest;
 import com.openevent.event.events.dto.EventResponse;
 import com.openevent.event.events.dto.RejectRequest;
+import com.openevent.event.events.dto.StaffRequest;
+import com.openevent.event.events.dto.StaffResponse;
+import com.openevent.event.media.ImageStorage.UploadedImage;
+import com.openevent.event.organization.dto.UserIdRequest;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -48,7 +56,7 @@ public class EventController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return eventService.searchPublished(new EventSearch(keyword, category, city, from, to, null, null), page, size);
+        return eventService.searchPublished(new EventSearch(keyword, category, city, from, to, null, null, null), page, size);
     }
 
     @GetMapping("/my")
@@ -68,7 +76,7 @@ public class EventController {
             @RequestParam(required = false) EventStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return eventService.searchForAdmin(new EventSearch(keyword, null, null, null, null, status, null), page, size);
+        return eventService.searchForAdmin(new EventSearch(keyword, null, null, null, null, status, null, null), page, size);
     }
 
     @GetMapping("/{id}")
@@ -120,5 +128,44 @@ public class EventController {
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
     public EventResponse cancel(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
         return eventService.cancel(caller, id);
+    }
+
+    /** Ảnh bìa: multipart field {@code file}, JPG/PNG/WEBP tối đa 5 MB; trả về {@code url} để đưa vào bannerUrl. */
+    @PostMapping(path = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public UploadedImage uploadImage(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
+            @RequestPart("file") MultipartFile file) {
+        return eventService.uploadImage(caller.id(), id, file);
+    }
+
+    /** Đổi HOST sự kiện thuộc tổ chức (BR-14). */
+    @PutMapping("/{id}/host")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public EventResponse assignHost(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
+            @Valid @RequestBody UserIdRequest request) {
+        return eventService.assignHost(caller.id(), id, request.userId());
+    }
+
+    @GetMapping("/{id}/staff")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public List<StaffResponse> staff(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
+        return eventService.staff(caller.id(), id);
+    }
+
+    @PostMapping("/{id}/staff")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public StaffResponse addStaff(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
+            @Valid @RequestBody StaffRequest request) {
+        return eventService.addStaff(caller.id(), id, request.email());
+    }
+
+    @DeleteMapping("/{id}/staff/{userId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeStaff(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
+            @PathVariable UUID userId) {
+        eventService.removeStaff(caller.id(), id, userId);
     }
 }
