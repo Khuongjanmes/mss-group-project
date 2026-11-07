@@ -75,6 +75,7 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 - Mỗi service một file trong `src/api/`, khai báo kiểu và hàm gọi API, ví dụ [src/api/events.ts](frontend/src/api/events.ts). Dùng `api` trong [src/api/client.ts](frontend/src/api/client.ts), không tạo axios riêng. Lỗi lấy bằng `errorMessage(error)`.
 - Kiểu dùng chung (`PageResponse`, `ApiError`) ở [src/api/types.ts](frontend/src/api/types.ts).
 - Thêm trang vào `src/pages/` và route vào [src/router.tsx](frontend/src/router.tsx).
+- Màu, font, bo góc lấy theo token trong [src/index.css](frontend/src/index.css) (`bg-primary`, `text-muted-foreground`, `bg-success/12 text-success`…), không dùng mã màu hay màu thô của Tailwind. Quy tắc tương phản ghi ở đầu file.
 - Đổi địa chỉ Gateway: chép `.env.example` thành `.env.local`.
 
 ## Kiểm thử

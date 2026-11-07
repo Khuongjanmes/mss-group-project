@@ -18,16 +18,16 @@ export default function HomePage() {
 
   return (
     <section>
-      <h1 className="mb-4 text-2xl font-bold">Sự kiện sắp diễn ra</h1>
-      {loading && <p className="text-slate-500">Đang tải…</p>}
-      {error && <p className="text-red-600">{error}</p>}
-      {!loading && !error && events.length === 0 && <p className="text-slate-500">Chưa có sự kiện nào.</p>}
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <h1 className="mb-4 text-2xl font-bold tracking-tight md:text-[28px]">Sự kiện sắp diễn ra</h1>
+      {loading && <p className="text-muted-foreground">Đang tải…</p>}
+      {error && <p className="text-destructive">{error}</p>}
+      {!loading && !error && events.length === 0 && <p className="text-muted-foreground">Chưa có sự kiện nào.</p>}
+      <ul className="grid gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {events.map((event) => (
-          <li key={event.id} className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-sm text-indigo-600">{event.category.name}</p>
-            <h2 className="font-semibold">{event.title}</h2>
-            <p className="text-sm text-slate-600">
+          <li key={event.id} className="rounded-xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <p className="text-xs font-semibold text-accent-foreground">{event.category.name}</p>
+            <h2 className="line-clamp-2 font-semibold">{event.title}</h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">
               {new Date(event.startTime).toLocaleString('vi-VN')} · {event.venue.city}
             </p>
           </li>
