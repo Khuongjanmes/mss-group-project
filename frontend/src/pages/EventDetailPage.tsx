@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -6,6 +7,7 @@ import { type EventItem, getEvent } from '@/api/events';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/feedback';
 import { Button } from '@/components/ui/button';
 import { EventDetailView } from '@/events/EventDetailView';
+import { RelatedEvents } from '@/events/RelatedEvents';
 
 /** Trang công khai của một sự kiện. Phần loại vé và đặt vé (Ticket, Order) sẽ gắn vào `aside` của thẻ thông tin. */
 export default function EventDetailPage() {
@@ -45,5 +47,16 @@ export default function EventDetailPage() {
   }
   if (error) return <ErrorState description={error.message} onRetry={() => setReloadKey((k) => k + 1)} />;
   if (!event) return <LoadingState lines={10} />;
-  return <EventDetailView event={event} />;
+  return (
+    <div className="space-y-4">
+      <Button asChild variant="ghost" size="sm" className="-ml-2 text-muted-foreground">
+        <Link to="/events">
+          <ArrowLeft className="size-4" />
+          Tất cả sự kiện
+        </Link>
+      </Button>
+      <EventDetailView event={event} />
+      <RelatedEvents event={event} />
+    </div>
+  );
 }

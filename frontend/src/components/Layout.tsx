@@ -1,8 +1,9 @@
-import { Link, Outlet } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
 
 import { signOut } from '@/api/auth';
 import { hasRole, useSession } from '@/auth/session';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export default function Layout() {
   const session = useSession();
@@ -11,9 +12,17 @@ export default function Layout() {
     <div className="flex min-h-screen flex-col">
       <header className="border-b bg-card">
         <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-          <Link to="/" className="mr-auto text-lg font-bold text-primary">
+          <Link to="/" className="text-lg font-bold text-primary">
             OpenEvent
           </Link>
+          <NavLink
+            to="/events"
+            className={({ isActive }) =>
+              cn('mr-auto text-sm font-medium transition-colors hover:text-foreground', isActive ? 'text-foreground' : 'text-muted-foreground')
+            }
+          >
+            Sự kiện
+          </NavLink>
           {session ? (
             <>
               {hasRole(session, 'ADMIN') && (

@@ -8,6 +8,7 @@ import { RequireRole } from './auth/RequireRole';
 import Layout from './components/Layout';
 import EventManageDetailPage from './events/EventManageDetailPage';
 import EventDetailPage from './pages/EventDetailPage';
+import EventsPage from './pages/EventsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'login', element: <LoginPage /> },
+      { path: 'events', element: <EventsPage /> },
       { path: 'events/:id', element: <EventDetailPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
