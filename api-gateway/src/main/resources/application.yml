@@ -24,7 +24,7 @@ spring:
             - id: event-service
               uri: lb://event-service
               predicates:
-                - Path=/api/events/**,/api/categories/**,/api/venues/**
+                - Path=/api/events/**,/api/categories/**,/api/venues/**,/api/organizations/**
             - id: ticket-service
               uri: lb://ticket-service
               predicates:

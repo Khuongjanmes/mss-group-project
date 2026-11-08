@@ -1,15 +1,21 @@
 package com.openevent.event.events;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 
 import com.openevent.common.web.ApiException;
 import com.openevent.event.category.Category;
+import com.openevent.event.organization.Organization;
 import com.openevent.event.venue.Venue;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -36,8 +42,20 @@ public class Event {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, updatable = false)
+    /** HOST của sự kiện. */
+    @Column(nullable = false)
     private UUID organizerId;
+
+    /** {@code null} với sự kiện cá nhân; chọn lúc tạo và không đổi (BR-14). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", updatable = false)
+    private Organization organization;
+
+    @ElementCollection
+    @CollectionTable(name = "event_staff", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "user_id")
+    @Getter(AccessLevel.NONE)
+    private Set<UUID> staff = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id")
@@ -69,14 +87,50 @@ public class Event {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    public static Event draft(UUID organizerId) {
+    public static Event draft(UUID organizerId, Organization organization) {
         Event event = new Event();
         event.organizerId = organizerId;
+        event.organization = organization;
         return event;
+    }
+
+    /** Đọc id từ proxy không cần nạp tổ chức. */
+    public UUID getOrganizationId() {
+        return organization == null ? null : organization.getId();
     }
 
     public boolean isOwnedBy(UUID userId) {
         return organizerId.equals(userId);
+    }
+
+    public void assignHost(UUID hostId) {
+        requireActive();
+        organizerId = hostId;
+    }
+
+    public Set<UUID> staff() {
+        return Collections.unmodifiableSet(staff);
+    }
+
+    public boolean isStaff(UUID userId) {
+        return staff.contains(userId);
+    }
+
+    public void addStaff(UUID userId) {
+        requireActive();
+        staff.add(userId);
+    }
+
+    public void removeStaff(UUID userId) {
+        requireActive();
+        staff.remove(userId);
+    }
+
+    /** Sự kiện đã hủy hoặc đã kết thúc thì không đổi HOST, STAFF nữa. */
+    public void requireActive() {
+        if (status == EventStatus.CANCELLED || status == EventStatus.COMPLETED) {
+            throw statusInvalid("Sự kiện đã hủy hoặc đã kết thúc");
+        }
     }
 
     /** Chỉ sửa khi chưa gửi duyệt hoặc bị từ chối; sự kiện đã công bố không đổi nội dung. */

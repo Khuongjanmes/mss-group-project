@@ -83,10 +83,10 @@ class TicketServiceBaseIT {
     void pingReceivesIdentityFromGatewayHeaders() throws Exception {
         String userId = UUID.randomUUID().toString();
 
-        HttpResponse<String> response = get("/api/ticket-types/ping", "X-User-Id", userId, "X-User-Roles", "ATTENDEE");
+        HttpResponse<String> response = get("/api/ticket-types/ping", "X-User-Id", userId, "X-User-Roles", "USER");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("ticket-service", userId, "ATTENDEE");
+        assertThat(response.body()).contains("ticket-service", userId, "USER");
     }
 
     @Test

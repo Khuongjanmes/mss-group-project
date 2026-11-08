@@ -109,10 +109,10 @@ class ServiceBaseTest {
 
     @Test
     void identityHeadersBecomePrincipal() throws Exception {
-        HttpResponse<String> response = getAs("/api/private/me", "ATTENDEE,ORGANIZER");
+        HttpResponse<String> response = getAs("/api/private/me", "USER,ADMIN");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains(userId, "a@example.com", "ATTENDEE", "ORGANIZER");
+        assertThat(response.body()).contains(userId, "a@example.com", "USER", "ADMIN");
     }
 
     @Test
@@ -122,7 +122,7 @@ class ServiceBaseTest {
 
     @Test
     void preAuthorizeReturnsJson403ForWrongRole() throws Exception {
-        HttpResponse<String> response = getAs("/api/private/admin", "ATTENDEE");
+        HttpResponse<String> response = getAs("/api/private/admin", "USER");
 
         assertThat(response.statusCode()).isEqualTo(403);
         assertThat(response.body()).contains("\"code\":\"FORBIDDEN\"");
@@ -140,7 +140,7 @@ class ServiceBaseTest {
 
     @Test
     void apiExceptionKeepsStatusAndCode() throws Exception {
-        HttpResponse<String> response = getAs("/api/private/business-error", "ATTENDEE");
+        HttpResponse<String> response = getAs("/api/private/business-error", "USER");
 
         assertThat(response.statusCode()).isEqualTo(409);
         assertThat(response.body()).contains("\"code\":\"SOLD_OUT\"", "/api/private/business-error");
@@ -148,7 +148,7 @@ class ServiceBaseTest {
 
     @Test
     void unexpectedExceptionDoesNotLeakDetails() throws Exception {
-        HttpResponse<String> response = getAs("/api/private/crash", "ATTENDEE");
+        HttpResponse<String> response = getAs("/api/private/crash", "USER");
 
         assertThat(response.statusCode()).isEqualTo(500);
         assertThat(response.body()).contains("\"code\":\"INTERNAL_ERROR\"").doesNotContain("hunter2", "IllegalState");
@@ -156,7 +156,7 @@ class ServiceBaseTest {
 
     @Test
     void unknownPathForAuthenticatedUserIsJson404() throws Exception {
-        HttpResponse<String> response = getAs("/api/private/nothing-here", "ATTENDEE");
+        HttpResponse<String> response = getAs("/api/private/nothing-here", "USER");
 
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.body()).contains("\"status\":404");
@@ -175,6 +175,6 @@ class ServiceBaseTest {
 
     @Test
     void noSessionCookieIsCreated() throws Exception {
-        assertThat(getAs("/api/private/me", "ATTENDEE").headers().firstValue("Set-Cookie")).isEmpty();
+        assertThat(getAs("/api/private/me", "USER").headers().firstValue("Set-Cookie")).isEmpty();
     }
 }

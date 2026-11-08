@@ -2,6 +2,7 @@ package com.openevent.identity.user;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -92,22 +93,20 @@ public class UserService {
         return UserResponse.from(user);
     }
 
-    @Transactional
-    public UserResponse grantOrganizer(UUID adminId, UUID id) {
-        requireActiveCaller(adminId);
-        User user = requireUser(id);
-        user.addRole(roles.findByName(RoleName.ORGANIZER).orElseThrow());
-        return UserResponse.from(user);
-    }
-
     @Transactional(readOnly = true)
     public UserContactResponse getContact(UUID id) {
         return UserContactResponse.from(requireUser(id));
     }
 
     @Transactional(readOnly = true)
+    public UserContactResponse getContactByEmail(String email) {
+        return users.findByEmail(email.trim().toLowerCase(Locale.ROOT)).map(UserContactResponse::from)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
+    }
+
+    @Transactional(readOnly = true)
     public List<UserContactResponse> getContacts(Collection<UUID> ids) {
-        return users.findAllById(ids).stream().map(UserContactResponse::from).toList();
+        return users.findAllByIdIn(ids).stream().map(UserContactResponse::from).toList();
     }
 
     /** JWT còn hạn không phản ánh việc vừa bị khóa, nên kiểm tra lại trong database (BR-12). */

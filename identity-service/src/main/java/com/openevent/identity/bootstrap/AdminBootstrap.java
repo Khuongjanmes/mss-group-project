@@ -46,7 +46,7 @@ public class AdminBootstrap implements ApplicationRunner {
             return;
         }
         User admin = User.local(email, passwordEncoder.encode(properties.adminPassword()), "Administrator");
-        admin.addRole(roles.findByName(RoleName.ATTENDEE).orElseThrow());
+        admin.addRole(roles.findByName(RoleName.USER).orElseThrow());
         admin.addRole(roles.findByName(RoleName.ADMIN).orElseThrow());
         users.save(admin);
         log.info("Đã tạo tài khoản admin đầu tiên: {}", email);

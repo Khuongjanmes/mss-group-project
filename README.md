@@ -75,6 +75,9 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 - Mỗi service một file trong `src/api/`, khai báo kiểu và hàm gọi API, ví dụ [src/api/events.ts](frontend/src/api/events.ts). Dùng `api` trong [src/api/client.ts](frontend/src/api/client.ts), không tạo axios riêng. Lỗi lấy bằng `errorMessage(error)`.
 - Kiểu dùng chung (`PageResponse`, `ApiError`) ở [src/api/types.ts](frontend/src/api/types.ts).
 - Thêm trang vào `src/pages/` và route vào [src/router.tsx](frontend/src/router.tsx).
+- Component giao diện là shadcn/ui chép từ repo openevent: `src/components/ui/` (nút, bảng, dialog…) và `src/components/common/` (khung trang quản trị, phân trang, trạng thái tải/lỗi/rỗng). Import bằng alias `@/`, ví dụ `import { Button } from '@/components/ui/button'`.
+- Khu quản trị `/admin` (chỉ ADMIN) nằm trong `src/admin/`: thêm mục menu ở [adminNav.ts](frontend/src/admin/adminNav.ts) và route con có `handle: { crumb }` trong `router.tsx`.
+- Người đang đăng nhập: `useSession()` và `hasRole()` trong [src/auth/session.ts](frontend/src/auth/session.ts); chặn route theo vai trò bằng `<RequireRole role="…" />`. Đăng nhập hiện chỉ có email + mật khẩu và chưa tự refresh token: hết 15 phút phải đăng nhập lại.
 - Màu, font, bo góc lấy theo token trong [src/index.css](frontend/src/index.css) (`bg-primary`, `text-muted-foreground`, `bg-success/12 text-success`…), không dùng mã màu hay màu thô của Tailwind. Quy tắc tương phản ghi ở đầu file.
 - Đổi địa chỉ Gateway: chép `.env.example` thành `.env.local`.
 
@@ -93,7 +96,7 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 ```java
 @PostMapping("/api/orders")
 public OrderResponse create(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody CreateOrderRequest request) {
-    // user.id(), user.email(), user.hasRole("ORGANIZER")
+    // user.id(), user.email(), user.hasRole("ADMIN")
 }
 ```
 
@@ -141,8 +144,8 @@ Tất cả đi qua Gateway. Chi tiết request và response xem Swagger của Id
 | GET | `/api/users?keyword&status&page&size` | ADMIN | Tìm người dùng |
 | GET | `/api/users/{id}` | ADMIN | Xem người dùng |
 | PUT | `/api/users/{id}/lock`, `/unlock` | ADMIN | Khóa, mở khóa |
-| PUT | `/api/users/{id}/roles/organizer` | ADMIN | Cấp vai trò ORGANIZER |
 | GET | `/internal/users/{id}` | Nội bộ | Email, họ tên, trạng thái |
+| GET | `/internal/users/by-email?email` | Nội bộ | Tìm user theo email (không phân biệt hoa thường), 404 nếu không có; trả cả `status` và `admin`. Event dùng để mời thành viên tổ chức, thêm STAFF |
 | POST | `/internal/users/batch` | Nội bộ | Tối đa 500 id |
 
 Lưu ý cho SPA:
@@ -155,18 +158,31 @@ Lưu ý cho SPA:
 | Method | Đường dẫn | Quyền | Mô tả |
 | --- | --- | --- | --- |
 | GET | `/api/events?keyword&category&city&from&to&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601 |
-| GET | `/api/events/{id}` | Công khai | Sự kiện chưa công bố chỉ chủ sự kiện và ADMIN xem được |
-| GET | `/api/events/my?status` | ORGANIZER | Sự kiện của tôi, mọi trạng thái |
+| GET | `/api/events/{id}` | Công khai | Sự kiện chưa công bố chỉ người quản lý, STAFF và ADMIN xem được |
+| GET | `/api/events/my?status` | Đăng nhập, trừ ADMIN | Sự kiện mình làm HOST, mọi trạng thái |
 | GET | `/api/events/admin?keyword&status` | ADMIN | Mọi sự kiện, ví dụ `status=PENDING_APPROVAL` để duyệt |
-| POST, PUT, DELETE | `/api/events`, `/api/events/{id}` | ORGANIZER (chủ sự kiện) | Tạo nháp; sửa, xóa khi DRAFT hoặc REJECTED |
-| PUT | `/api/events/{id}/submit` | ORGANIZER (chủ sự kiện) | DRAFT/REJECTED → PENDING_APPROVAL |
+| POST, PUT, DELETE | `/api/events`, `/api/events/{id}` | Người quản lý sự kiện | Tạo nháp, `organizationId` không bắt buộc; sửa, xóa khi DRAFT hoặc REJECTED |
+| PUT | `/api/events/{id}/submit` | Người quản lý sự kiện | DRAFT/REJECTED → PENDING_APPROVAL |
 | PUT | `/api/events/{id}/approve`, `/reject` | ADMIN | → PUBLISHED, hoặc → REJECTED kèm `{"reason"}` |
-| PUT | `/api/events/{id}/cancel` | Chủ sự kiện hoặc ADMIN | PUBLISHED → CANCELLED, phát `EventCancelled` |
+| PUT | `/api/events/{id}/cancel` | Người quản lý hoặc ADMIN | PUBLISHED → CANCELLED, phát `EventCancelled` |
+| POST | `/api/events/{id}/images` | Người quản lý sự kiện | Multipart `file` (JPG/PNG/WEBP, tối đa 5 MB) lên Cloudinary, trả `{url, publicId}`; đưa `url` vào `bannerUrl` rồi lưu. Cần `CLOUDINARY_*` trong `.env` |
+| PUT | `/api/events/{id}/host` | Người quản lý sự kiện | `{"userId"}`: đổi HOST, chỉ với sự kiện thuộc tổ chức; HOST mới phải là thành viên |
+| GET, POST, DELETE | `/api/events/{id}/staff`, `/staff/{userId}` | Người quản lý sự kiện | Danh sách kèm họ tên, thêm bằng `{"email"}` (không cần thuộc tổ chức), xóa STAFF |
+| POST | `/api/organizations` | Đăng nhập, trừ ADMIN | Tạo tổ chức, người tạo là OWNER |
+| GET | `/api/organizations/my` | Đăng nhập, trừ ADMIN | Tổ chức mình tham gia, kèm `myRole`, `canCreateEvents`, `memberCount` |
+| GET | `/api/organizations/{id}`, `/members`, `/events?status` | Thành viên | Người ngoài nhận 404; `/members` kèm họ tên, email từ Identity |
+| PUT | `/api/organizations/{id}` | OWNER | Sửa tên, mô tả |
+| POST | `/api/organizations/{id}/members` | OWNER, MANAGER | `{"email", "role"}`: mời MANAGER (chỉ OWNER) hoặc MEMBER |
+| PUT | `/api/organizations/{id}/members/{userId}` | OWNER | `{"role", "canCreateEvents"}`: đổi vai trò, cấp quyền tạo sự kiện cho MEMBER |
+| DELETE | `/api/organizations/{id}/members/{userId}` | OWNER, MANAGER (chỉ MEMBER), bản thân | Xóa hoặc tự rời; không xóa được OWNER và người đang làm HOST |
+| PUT | `/api/organizations/{id}/owner` | OWNER | `{"userId"}`: chuyển quyền cho một thành viên, OWNER cũ thành MANAGER |
 | GET | `/api/categories` | Công khai | Danh mục; slug sinh từ tên |
 | POST, PUT, DELETE | `/api/categories`, `/api/categories/{id}` | ADMIN | Không xóa được danh mục đang dùng |
 | GET | `/api/venues?city`, `/api/venues/{id}` | Công khai | Địa điểm |
-| POST | `/api/venues` | ORGANIZER, ADMIN | Thêm địa điểm |
-| PUT, DELETE | `/api/venues/{id}` | ADMIN | Không xóa được địa điểm đang dùng |
+| POST, PUT, DELETE | `/api/venues`, `/api/venues/{id}` | ADMIN | Thêm, sửa, xóa; không xóa được địa điểm đang dùng |
 | GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket |
+| GET | `/internal/events/{id}/access?userId` | Nội bộ | `canManage, canCheckIn`: Ticket và Order dùng để kiểm tra quyền thay vì so `organizerId` |
+
+"Người quản lý" sự kiện là HOST (`organizerId`), hoặc OWNER/MANAGER của tổ chức sở hữu sự kiện; MEMBER chỉ quản lý sự kiện mình làm HOST. Bảng quyền đầy đủ ở mục 1.2 của [requirement.md](requirement.md).
 
 Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETED.

@@ -90,10 +90,10 @@ class NotificationServiceBaseIT {
     void pingReceivesIdentityFromGatewayHeaders() throws Exception {
         String userId = UUID.randomUUID().toString();
 
-        HttpResponse<String> response = get("/api/notifications/ping", "X-User-Id", userId, "X-User-Roles", "ATTENDEE");
+        HttpResponse<String> response = get("/api/notifications/ping", "X-User-Id", userId, "X-User-Roles", "USER");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("notification-service", userId, "ATTENDEE");
+        assertThat(response.body()).contains("notification-service", userId, "USER");
     }
 
     @Test

@@ -48,7 +48,7 @@ public class VenueController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public VenueResponse create(@Valid @RequestBody VenueRequest request) {
         return venueService.create(request);
     }
