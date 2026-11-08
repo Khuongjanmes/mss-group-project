@@ -229,17 +229,6 @@ class AuthApiIT extends IdentityIntegrationTest {
     }
 
     @Test
-    void refreshPicksUpNewlyGrantedRole() {
-        Response auth = register(uniqueEmail());
-        String id = auth.body().path("user").path("id").asString();
-        assertThat(send("PUT", "/api/users/" + id + "/roles/organizer", null, admin()).status()).isEqualTo(200);
-
-        Response refreshed = refresh(auth.body().path("refreshToken").asString());
-
-        assertThat(refreshed.body().path("user").path("roles").toString()).contains("ORGANIZER", "ATTENDEE");
-    }
-
-    @Test
     void logoutRevokesTokenAndIsIdempotent() {
         String token = register(uniqueEmail()).body().path("refreshToken").asString();
 

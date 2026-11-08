@@ -192,7 +192,7 @@ export async function searchVenues(params: { city?: string; page?: number; size?
   return (await api.get<PageResponse<Venue>>('/api/venues', { params })).data
 }
 
-/** ORGANIZER hoặc ADMIN thêm được; chỉ ADMIN sửa, xóa. */
+/** Ai đăng nhập cũng thêm được; chỉ ADMIN sửa, xóa. */
 export async function createVenue(body: VenueRequest): Promise<Venue> {
   return (await api.post<Venue>('/api/venues', body)).data
 }

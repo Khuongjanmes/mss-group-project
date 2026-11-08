@@ -21,7 +21,7 @@ export default function Layout() {
                   <Link to="/admin">Quản trị</Link>
                 </Button>
               )}
-              {hasRole(session, 'ORGANIZER') && (
+              {!hasRole(session, 'ADMIN') && (
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/organizer">Quản lý sự kiện</Link>
                 </Button>

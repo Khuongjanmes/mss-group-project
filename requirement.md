@@ -27,7 +27,7 @@ Hệ thống hợp với microservices vì các miền nghiệp vụ tách biệ
 
 ### 1.2 Vai trò người dùng và chức năng
 
-Hệ thống có 3 vai trò: Attendee, Organizer, Admin. Khách chưa đăng nhập (Guest) chỉ xem được danh sách và chi tiết sự kiện.
+Hệ thống có 2 vai trò: Attendee (mọi tài khoản đăng ký) và Admin. Không có vai trò Organizer riêng: tài khoản nào (trừ Admin) cũng tạo được tổ chức và sự kiện, và trở thành ban tổ chức của sự kiện đó; Admin duyệt từng sự kiện trước khi công bố. Khách chưa đăng nhập (Guest) chỉ xem được danh sách và chi tiết sự kiện.
 
 Ngoài vai trò hệ thống (do Identity cấp, nằm trong JWT), Event Service quản lý thêm vai trò theo tổ chức và theo sự kiện:
 
@@ -70,11 +70,11 @@ Sự kiện không thuộc tổ chức nào (sự kiện cá nhân) chỉ có HO
 | 9 | Hủy đơn | Hủy đơn chưa thanh toán; vé được trả lại kho | Order, Ticket |
 | 10 | Nhận thông báo | Email xác nhận vé, thông báo sự kiện bị hủy (nhắc lịch 24 giờ thuộc phần dự phòng, mục 3.5) | Notification |
 
-**Organizer (ban tổ chức)**
+**Organizer (ban tổ chức: tài khoản đang quản lý sự kiện, không phải vai trò hệ thống)**
 
 | # | Tên chức năng | Mô tả chức năng | Service |
 | --- | --- | --- | --- |
-| 1 | Đăng nhập | Đăng nhập bằng tài khoản có vai trò ORGANIZER | Identity |
+| 1 | Đăng nhập | Đăng nhập bằng tài khoản OpenEvent bất kỳ (trừ Admin) | Identity |
 | 2 | Tạo / sửa sự kiện | Nhập tên, mô tả, danh mục, địa điểm, thời gian, ảnh bìa; chọn tổ chức (không bắt buộc); lưu nháp | Event |
 | 3 | Gửi duyệt sự kiện | Chuyển sự kiện từ DRAFT sang PENDING_APPROVAL | Event |
 | 4 | Quản lý loại vé | Tạo loại vé (VIP, Thường, Early Bird): giá, số lượng, thời gian mở bán | Ticket |
@@ -89,7 +89,7 @@ Sự kiện không thuộc tổ chức nào (sự kiện cá nhân) chỉ có HO
 
 | # | Tên chức năng | Mô tả chức năng | Service |
 | --- | --- | --- | --- |
-| 1 | Quản lý người dùng | Xem, tìm, khóa/mở khóa tài khoản; cấp vai trò ORGANIZER | Identity |
+| 1 | Quản lý người dùng | Xem, tìm, khóa/mở khóa tài khoản | Identity |
 | 2 | Duyệt sự kiện | Duyệt (PUBLISHED) hoặc từ chối (REJECTED) kèm lý do | Event |
 | 3 | Quản lý danh mục | CRUD danh mục sự kiện (Hội thảo, Âm nhạc, Thể thao, Workshop...) | Event |
 | 4 | Quản lý giao dịch | Xem tất cả giao dịch thanh toán, lọc theo trạng thái; đánh dấu đã hoàn tiền | Payment |
@@ -110,7 +110,7 @@ Sự kiện không thuộc tổ chức nào (sự kiện cá nhân) chỉ có HO
 - **BR-11:** Mỗi giao dịch thanh toán có mã duy nhất (idempotency key), callback trùng không được xử lý hai lần. Mọi consumer RabbitMQ phải idempotent theo `messageId`.
 - **BR-12:** Tài khoản bị khóa không đăng nhập được và không tạo được đơn mới. Order hỏi trạng thái tài khoản từ Identity khi tạo đơn vì JWT còn hạn không phản ánh việc vừa bị khóa.
 - **BR-13:** Thanh toán thành công trên đơn đã EXPIRED hoặc CANCELLED không phát hành vé; thanh toán đó chuyển sang REFUND_PENDING.
-- **BR-14:** Chỉ tài khoản có vai trò ORGANIZER mới tạo được tổ chức và sự kiện; Admin không tổ chức sự kiện mà chỉ duyệt, hủy sự kiện và quản lý hệ thống; MANAGER muốn tạo sự kiện cũng cần vai trò ORGANIZER. Mỗi tổ chức có đúng 1 OWNER; OWNER không rời được tổ chức mà phải chuyển quyền sở hữu cho một thành viên khác trước (OWNER cũ trở thành MANAGER). MEMBER mới được mời chưa có quyền tạo sự kiện. Mời thành viên bằng email tài khoản OpenEvent; Event hỏi Identity để lấy user id. Không xóa được thành viên đang làm HOST của sự kiện chưa kết thúc hoặc chưa hủy: phải đổi HOST trước. HOST mới phải là thành viên của tổ chức. Tổ chức của sự kiện được chọn lúc tạo và không đổi sau đó.
+- **BR-14:** Mọi tài khoản trừ Admin đều tạo được tổ chức và sự kiện cá nhân; Admin không tổ chức sự kiện mà chỉ duyệt, hủy sự kiện và quản lý hệ thống. Mỗi tổ chức có đúng 1 OWNER; OWNER không rời được tổ chức mà phải chuyển quyền sở hữu cho một thành viên khác trước (OWNER cũ trở thành MANAGER). MEMBER mới được mời chưa có quyền tạo sự kiện. Mời thành viên bằng email tài khoản OpenEvent; Event hỏi Identity để lấy user id. Không xóa được thành viên đang làm HOST của sự kiện chưa kết thúc hoặc chưa hủy: phải đổi HOST trước. HOST mới phải là thành viên của tổ chức. Tổ chức của sự kiện được chọn lúc tạo và không đổi sau đó.
 
 ## 2. Thiết kế cơ sở dữ liệu
 
@@ -121,7 +121,7 @@ Mỗi service sở hữu một database riêng. Giữa các service không có k
 | Bảng | Cột chính |
 | --- | --- |
 | users | id (PK), email (unique), password_hash (null với tài khoản Google), full_name, phone, avatar_url, provider (LOCAL/GOOGLE), provider_subject (mã tài khoản Google), status (ACTIVE/LOCKED), created_at, updated_at |
-| roles | id (PK), name (ATTENDEE/ORGANIZER/ADMIN) |
+| roles | id (PK), name (ATTENDEE/ADMIN) |
 | user_roles | user_id (FK), role_id (FK) |
 | refresh_tokens | id (PK), user_id (FK), token_hash (unique, SHA-256 của token), expires_at, revoked, created_at |
 

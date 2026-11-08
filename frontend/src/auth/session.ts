@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-export type Role = 'ATTENDEE' | 'ORGANIZER' | 'ADMIN';
+export type Role = 'ATTENDEE' | 'ADMIN';
 
 /** UserResponse của Identity. */
 export interface SessionUser {
@@ -68,8 +68,7 @@ export function hasRole(session: Session | null, role: Role): boolean {
 
 /** Trang đầu tiên sau khi đăng nhập. */
 export function homePathFor(session: Session): string {
-  if (hasRole(session, 'ADMIN')) return '/admin';
-  return hasRole(session, 'ORGANIZER') ? '/organizer' : '/';
+  return hasRole(session, 'ADMIN') ? '/admin' : '/';
 }
 
 /** Chỉ chuyển tới đường dẫn nội bộ, tránh open redirect qua ?redirect=. */

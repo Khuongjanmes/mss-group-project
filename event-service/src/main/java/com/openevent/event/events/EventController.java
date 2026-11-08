@@ -60,7 +60,7 @@ public class EventController {
     }
 
     @GetMapping("/my")
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public PageResponse<EventResponse> mine(@AuthenticationPrincipal AuthenticatedUser caller,
             @RequestParam(required = false) EventStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -86,14 +86,14 @@ public class EventController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public EventResponse create(@AuthenticationPrincipal AuthenticatedUser caller,
             @Valid @RequestBody EventRequest request) {
         return eventService.create(caller.id(), request);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public EventResponse update(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
             @Valid @RequestBody EventRequest request) {
         return eventService.update(caller.id(), id, request);
@@ -101,13 +101,13 @@ public class EventController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public void delete(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
         eventService.delete(caller.id(), id);
     }
 
     @PutMapping("/{id}/submit")
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public EventResponse submit(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
         return eventService.submit(caller.id(), id);
     }
@@ -125,14 +125,14 @@ public class EventController {
     }
 
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public EventResponse cancel(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
         return eventService.cancel(caller, id);
     }
 
     /** Ảnh bìa: multipart field {@code file}, JPG/PNG/WEBP tối đa 5 MB; trả về {@code url} để đưa vào bannerUrl. */
     @PostMapping(path = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public UploadedImage uploadImage(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
             @RequestPart("file") MultipartFile file) {
@@ -141,20 +141,20 @@ public class EventController {
 
     /** Đổi HOST sự kiện thuộc tổ chức (BR-14). */
     @PutMapping("/{id}/host")
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public EventResponse assignHost(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
             @Valid @RequestBody UserIdRequest request) {
         return eventService.assignHost(caller.id(), id, request.userId());
     }
 
     @GetMapping("/{id}/staff")
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public List<StaffResponse> staff(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
         return eventService.staff(caller.id(), id);
     }
 
     @PostMapping("/{id}/staff")
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public StaffResponse addStaff(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
             @Valid @RequestBody StaffRequest request) {
@@ -162,7 +162,7 @@ public class EventController {
     }
 
     @DeleteMapping("/{id}/staff/{userId}")
-    @PreAuthorize("hasRole('ORGANIZER')")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeStaff(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id,
             @PathVariable UUID userId) {

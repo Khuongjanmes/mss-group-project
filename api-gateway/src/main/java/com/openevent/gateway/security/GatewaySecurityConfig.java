@@ -48,7 +48,6 @@ import reactor.core.publisher.Mono;
 class GatewaySecurityConfig {
 
     private static final String ADMIN = "ADMIN";
-    private static final String ORGANIZER = "ORGANIZER";
 
     private static final String[] PUBLIC_AUTH_ENDPOINTS = {
             "/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/refresh", "/api/auth/logout"};
@@ -94,13 +93,9 @@ class GatewaySecurityConfig {
                         .pathMatchers("/api/users/**").hasRole(ADMIN)
 
                         .pathMatchers(HttpMethod.PUT, "/api/events/*/approve", "/api/events/*/reject").hasRole(ADMIN)
-                        .pathMatchers("/api/events/**").hasAnyRole(ORGANIZER, ADMIN)
                         .pathMatchers("/api/categories/**").hasRole(ADMIN)
-                        .pathMatchers("/api/venues/**").hasAnyRole(ORGANIZER, ADMIN)
-                        .pathMatchers("/api/organizations/**").hasRole(ORGANIZER)
-
-                        .pathMatchers("/api/ticket-types/**").hasRole(ORGANIZER)
-                        .pathMatchers(HttpMethod.POST, "/api/tickets/check-in").hasRole(ORGANIZER)
+                        // Sự kiện, tổ chức, địa điểm, loại vé, check-in: ai đăng nhập cũng gọi được;
+                        // service tự kiểm tra quyền theo tổ chức và sự kiện (BR-14).
 
                         .pathMatchers(HttpMethod.GET, "/api/payments").hasRole(ADMIN)
                         .pathMatchers(HttpMethod.PUT, "/api/payments/*/refunded").hasRole(ADMIN)

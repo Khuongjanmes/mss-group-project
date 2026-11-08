@@ -34,9 +34,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 
-/** Chỉ ORGANIZER (Admin không tổ chức sự kiện); quyền theo tổ chức do service kiểm tra. */
+/** Mọi tài khoản trừ Admin (Admin không tổ chức sự kiện); quyền theo tổ chức do service kiểm tra. */
 @RestController
-@PreAuthorize("hasRole('ORGANIZER')")
+@PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
 @RequestMapping("/api/organizations")
 @RequiredArgsConstructor
 public class OrganizationController {

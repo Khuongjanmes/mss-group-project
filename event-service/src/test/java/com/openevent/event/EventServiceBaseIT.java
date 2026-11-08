@@ -86,8 +86,8 @@ class EventServiceBaseIT {
         String userId = UUID.randomUUID().toString();
 
         assertThat(get("/api/events/my").statusCode()).isEqualTo(401);
-        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "ATTENDEE").statusCode()).isEqualTo(403);
-        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "ORGANIZER").statusCode()).isEqualTo(200);
+        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "ADMIN").statusCode()).isEqualTo(403);
+        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "ATTENDEE").statusCode()).isEqualTo(200);
     }
 
     @Test

@@ -93,14 +93,6 @@ public class UserService {
         return UserResponse.from(user);
     }
 
-    @Transactional
-    public UserResponse grantOrganizer(UUID adminId, UUID id) {
-        requireActiveCaller(adminId);
-        User user = requireUser(id);
-        user.addRole(roles.findByName(RoleName.ORGANIZER).orElseThrow());
-        return UserResponse.from(user);
-    }
-
     @Transactional(readOnly = true)
     public UserContactResponse getContact(UUID id) {
         return UserContactResponse.from(requireUser(id));

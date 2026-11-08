@@ -79,10 +79,4 @@ public class UserController {
     public UserResponse unlock(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
         return userService.unlock(caller.id(), id);
     }
-
-    @PutMapping("/{id}/roles/organizer")
-    @PreAuthorize("hasRole('ADMIN')")
-    public UserResponse grantOrganizer(@AuthenticationPrincipal AuthenticatedUser caller, @PathVariable UUID id) {
-        return userService.grantOrganizer(caller.id(), id);
-    }
 }

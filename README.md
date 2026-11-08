@@ -96,7 +96,7 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 ```java
 @PostMapping("/api/orders")
 public OrderResponse create(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody CreateOrderRequest request) {
-    // user.id(), user.email(), user.hasRole("ORGANIZER")
+    // user.id(), user.email(), user.hasRole("ADMIN")
 }
 ```
 
@@ -144,7 +144,6 @@ Tất cả đi qua Gateway. Chi tiết request và response xem Swagger của Id
 | GET | `/api/users?keyword&status&page&size` | ADMIN | Tìm người dùng |
 | GET | `/api/users/{id}` | ADMIN | Xem người dùng |
 | PUT | `/api/users/{id}/lock`, `/unlock` | ADMIN | Khóa, mở khóa |
-| PUT | `/api/users/{id}/roles/organizer` | ADMIN | Cấp vai trò ORGANIZER |
 | GET | `/internal/users/{id}` | Nội bộ | Email, họ tên, trạng thái |
 | GET | `/internal/users/by-email?email` | Nội bộ | Tìm user theo email (không phân biệt hoa thường), 404 nếu không có; Event dùng để mời thành viên tổ chức |
 | POST | `/internal/users/batch` | Nội bộ | Tối đa 500 id |
@@ -160,17 +159,17 @@ Lưu ý cho SPA:
 | --- | --- | --- | --- |
 | GET | `/api/events?keyword&category&city&from&to&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601 |
 | GET | `/api/events/{id}` | Công khai | Sự kiện chưa công bố chỉ người quản lý, STAFF và ADMIN xem được |
-| GET | `/api/events/my?status` | ORGANIZER | Sự kiện mình làm HOST, mọi trạng thái |
+| GET | `/api/events/my?status` | Đăng nhập, trừ ADMIN | Sự kiện mình làm HOST, mọi trạng thái |
 | GET | `/api/events/admin?keyword&status` | ADMIN | Mọi sự kiện, ví dụ `status=PENDING_APPROVAL` để duyệt |
-| POST, PUT, DELETE | `/api/events`, `/api/events/{id}` | ORGANIZER (người quản lý) | Tạo nháp, `organizationId` không bắt buộc; sửa, xóa khi DRAFT hoặc REJECTED |
-| PUT | `/api/events/{id}/submit` | ORGANIZER (người quản lý) | DRAFT/REJECTED → PENDING_APPROVAL |
+| POST, PUT, DELETE | `/api/events`, `/api/events/{id}` | Người quản lý sự kiện | Tạo nháp, `organizationId` không bắt buộc; sửa, xóa khi DRAFT hoặc REJECTED |
+| PUT | `/api/events/{id}/submit` | Người quản lý sự kiện | DRAFT/REJECTED → PENDING_APPROVAL |
 | PUT | `/api/events/{id}/approve`, `/reject` | ADMIN | → PUBLISHED, hoặc → REJECTED kèm `{"reason"}` |
 | PUT | `/api/events/{id}/cancel` | Người quản lý hoặc ADMIN | PUBLISHED → CANCELLED, phát `EventCancelled` |
-| POST | `/api/events/{id}/images` | ORGANIZER (người quản lý) | Multipart `file` (JPG/PNG/WEBP, tối đa 5 MB) lên Cloudinary, trả `{url, publicId}`; đưa `url` vào `bannerUrl` rồi lưu. Cần `CLOUDINARY_*` trong `.env` |
-| PUT | `/api/events/{id}/host` | ORGANIZER (người quản lý) | `{"userId"}`: đổi HOST, chỉ với sự kiện thuộc tổ chức; HOST mới phải là thành viên |
-| GET, POST, DELETE | `/api/events/{id}/staff`, `/staff/{userId}` | ORGANIZER (người quản lý) | Danh sách kèm họ tên, thêm bằng `{"email"}` (không cần thuộc tổ chức), xóa STAFF |
-| POST | `/api/organizations` | ORGANIZER | Tạo tổ chức, người tạo là OWNER |
-| GET | `/api/organizations/my` | ORGANIZER | Tổ chức mình tham gia, kèm `myRole`, `canCreateEvents`, `memberCount` |
+| POST | `/api/events/{id}/images` | Người quản lý sự kiện | Multipart `file` (JPG/PNG/WEBP, tối đa 5 MB) lên Cloudinary, trả `{url, publicId}`; đưa `url` vào `bannerUrl` rồi lưu. Cần `CLOUDINARY_*` trong `.env` |
+| PUT | `/api/events/{id}/host` | Người quản lý sự kiện | `{"userId"}`: đổi HOST, chỉ với sự kiện thuộc tổ chức; HOST mới phải là thành viên |
+| GET, POST, DELETE | `/api/events/{id}/staff`, `/staff/{userId}` | Người quản lý sự kiện | Danh sách kèm họ tên, thêm bằng `{"email"}` (không cần thuộc tổ chức), xóa STAFF |
+| POST | `/api/organizations` | Đăng nhập, trừ ADMIN | Tạo tổ chức, người tạo là OWNER |
+| GET | `/api/organizations/my` | Đăng nhập, trừ ADMIN | Tổ chức mình tham gia, kèm `myRole`, `canCreateEvents`, `memberCount` |
 | GET | `/api/organizations/{id}`, `/members`, `/events?status` | Thành viên | Người ngoài nhận 404; `/members` kèm họ tên, email từ Identity |
 | PUT | `/api/organizations/{id}` | OWNER | Sửa tên, mô tả |
 | POST | `/api/organizations/{id}/members` | OWNER, MANAGER | `{"email", "role"}`: mời MANAGER (chỉ OWNER) hoặc MEMBER |
@@ -180,7 +179,7 @@ Lưu ý cho SPA:
 | GET | `/api/categories` | Công khai | Danh mục; slug sinh từ tên |
 | POST, PUT, DELETE | `/api/categories`, `/api/categories/{id}` | ADMIN | Không xóa được danh mục đang dùng |
 | GET | `/api/venues?city`, `/api/venues/{id}` | Công khai | Địa điểm |
-| POST | `/api/venues` | ORGANIZER, ADMIN | Thêm địa điểm |
+| POST | `/api/venues` | Đăng nhập | Thêm địa điểm |
 | PUT, DELETE | `/api/venues/{id}` | ADMIN | Không xóa được địa điểm đang dùng |
 | GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket |
 | GET | `/internal/events/{id}/access?userId` | Nội bộ | `canManage, canCheckIn`: Ticket và Order dùng để kiểm tra quyền thay vì so `organizerId` |

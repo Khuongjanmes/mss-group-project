@@ -109,10 +109,10 @@ class ServiceBaseTest {
 
     @Test
     void identityHeadersBecomePrincipal() throws Exception {
-        HttpResponse<String> response = getAs("/api/private/me", "ATTENDEE,ORGANIZER");
+        HttpResponse<String> response = getAs("/api/private/me", "ATTENDEE,ADMIN");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains(userId, "a@example.com", "ATTENDEE", "ORGANIZER");
+        assertThat(response.body()).contains(userId, "a@example.com", "ATTENDEE", "ADMIN");
     }
 
     @Test

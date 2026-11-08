@@ -98,7 +98,7 @@ class GatewayTest {
     @Test
     void validTokenIsForwardedAsIdentityHeaders() throws Exception {
         String userId = UUID.randomUUID().toString();
-        String token = TestTokens.hs256(TestTokens.claims(userId, "ATTENDEE", "ORGANIZER").build(), TestTokens.SECRET);
+        String token = TestTokens.hs256(TestTokens.claims(userId, "ATTENDEE", "ADMIN").build(), TestTokens.SECRET);
 
         HttpResponse<String> response = get("/api/orders/my", bearer(token));
 
@@ -106,7 +106,7 @@ class GatewayTest {
         StubDownstream.Received received = STUB.last();
         assertThat(received.header("X-User-Id")).isEqualTo(userId);
         assertThat(received.header("X-User-Email")).isEqualTo(TestTokens.EMAIL);
-        assertThat(received.header("X-User-Roles").split(",")).containsExactlyInAnyOrder("ATTENDEE", "ORGANIZER");
+        assertThat(received.header("X-User-Roles").split(",")).containsExactlyInAnyOrder("ATTENDEE", "ADMIN");
     }
 
     @Test
@@ -252,40 +252,33 @@ class GatewayTest {
             "PUT,  /api/users/me/password,            ATTENDEE,  200",
             // Quản trị người dùng
             "GET,  /api/users,                        ATTENDEE,  403",
-            "GET,  /api/users,                        ORGANIZER, 403",
             "GET,  /api/users,                        ADMIN,     200",
             "GET,  /api/users/" + "11111111-1111-1111-1111-111111111111, ATTENDEE, 403",
-            "PUT,  /api/users/x/lock,                 ORGANIZER, 403",
+            "PUT,  /api/users/x/lock,                 ATTENDEE,  403",
             "PUT,  /api/users/x/lock,                 ADMIN,     200",
-            "PUT,  /api/users/x/roles/organizer,      ADMIN,     200",
             // Sự kiện
-            "POST, /api/events,                       ATTENDEE,  403",
-            "POST, /api/events,                       ORGANIZER, 200",
-            "PUT,  /api/events/1,                     ATTENDEE,  403",
-            "PUT,  /api/events/1,                     ORGANIZER, 200",
-            "PUT,  /api/events/1/approve,             ORGANIZER, 403",
+            "POST, /api/events,                       ATTENDEE,  200",
+            "PUT,  /api/events/1,                     ATTENDEE,  200",
+            "PUT,  /api/events/1/approve,             ATTENDEE,  403",
             "PUT,  /api/events/1/approve,             ADMIN,     200",
-            "PUT,  /api/events/1/reject,              ORGANIZER, 403",
+            "PUT,  /api/events/1/reject,              ATTENDEE,  403",
             "PUT,  /api/events/1/reject,              ADMIN,     200",
-            "DELETE, /api/events/1,                   ATTENDEE,  403",
+            "DELETE, /api/events/1,                   ATTENDEE,  200",
+            "POST, /api/organizations,                ATTENDEE,  200",
             // Danh mục, địa điểm
-            "POST, /api/categories,                   ORGANIZER, 403",
+            "POST, /api/categories,                   ATTENDEE,  403",
             "POST, /api/categories,                   ADMIN,     200",
-            "DELETE, /api/categories/1,               ORGANIZER, 403",
-            "POST, /api/venues,                       ATTENDEE,  403",
-            "POST, /api/venues,                       ORGANIZER, 200",
+            "DELETE, /api/categories/1,               ATTENDEE,  403",
+            "POST, /api/venues,                       ATTENDEE,  200",
             // Vé
-            "POST, /api/ticket-types,                 ATTENDEE,  403",
-            "POST, /api/ticket-types,                 ORGANIZER, 200",
-            "PUT,  /api/ticket-types/1,               ADMIN,     403",
-            "POST, /api/tickets/check-in,             ATTENDEE,  403",
-            "POST, /api/tickets/check-in,             ORGANIZER, 200",
+            "POST, /api/ticket-types,                 ATTENDEE,  200",
+            "POST, /api/tickets/check-in,             ATTENDEE,  200",
             "GET,  /api/tickets/my,                   ATTENDEE,  200",
             // Đơn hàng, thanh toán, thông báo
             "POST, /api/orders,                       ATTENDEE,  200",
             "POST, /api/payments,                     ATTENDEE,  503",
             "GET,  /api/payments,                     ATTENDEE,  403",
-            "PUT,  /api/payments/1/refunded,          ORGANIZER, 403"})
+            "PUT,  /api/payments/1/refunded,          ATTENDEE,  403"})
     void roleRules(String method, String path, String role, int expected) throws Exception {
         HttpResponse<String> response = send(method.trim(), path.trim(),
                 method.trim().equals("GET") || method.trim().equals("DELETE") ? null : "{}",

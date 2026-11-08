@@ -80,12 +80,12 @@ class EventApiIT {
     }
 
     private final HttpClient http = HttpClient.newHttpClient();
-    private final Caller admin = new Caller(UUID.randomUUID(), "ADMIN");
-    private final Caller organizer = new Caller(UUID.randomUUID(), "ATTENDEE,ORGANIZER");
-    private final Caller otherOrganizer = new Caller(UUID.randomUUID(), "ORGANIZER");
+    private final Caller admin = new Caller(UUID.randomUUID(), "ATTENDEE,ADMIN");
+    private final Caller organizer = new Caller(UUID.randomUUID(), "ATTENDEE");
+    private final Caller otherOrganizer = new Caller(UUID.randomUUID(), "ATTENDEE");
     private final Caller attendee = new Caller(UUID.randomUUID(), "ATTENDEE");
-    private final Caller outsider = new Caller(UUID.randomUUID(), "ORGANIZER");
-    private final Caller member = new Caller(UUID.randomUUID(), "ORGANIZER");
+    private final Caller outsider = new Caller(UUID.randomUUID(), "ATTENDEE");
+    private final Caller member = new Caller(UUID.randomUUID(), "ATTENDEE");
 
     @LocalServerPort
     int port;
@@ -281,13 +281,11 @@ class EventApiIT {
     }
 
     @Test
-    void attendeeCannotCreateAndAdminCannotPublishDraftDirectly() {
-        Map<String, Object> body = futureEvent("Không quyền", "Huế");
-        assertThat(send("POST", "/api/events", body, attendee).status()).isEqualTo(403);
+    void anyAccountCreatesButOnlyAdminApproves() {
+        String id = createDraft(attendee, futureEvent("Ai cũng tạo được", "Huế"));
 
-        String id = createDraft(organizer, body);
         assertThat(send("PUT", "/api/events/" + id + "/approve", null, admin).code()).isEqualTo("EVENT_STATUS_INVALID");
-        assertThat(send("PUT", "/api/events/" + id + "/approve", null, organizer).status()).isEqualTo(403);
+        assertThat(send("PUT", "/api/events/" + id + "/approve", null, attendee).status()).isEqualTo(403);
     }
 
     @Test
