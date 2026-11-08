@@ -145,7 +145,7 @@ Tất cả đi qua Gateway. Chi tiết request và response xem Swagger của Id
 | GET | `/api/users/{id}` | ADMIN | Xem người dùng |
 | PUT | `/api/users/{id}/lock`, `/unlock` | ADMIN | Khóa, mở khóa |
 | GET | `/internal/users/{id}` | Nội bộ | Email, họ tên, trạng thái |
-| GET | `/internal/users/by-email?email` | Nội bộ | Tìm user theo email (không phân biệt hoa thường), 404 nếu không có; Event dùng để mời thành viên tổ chức |
+| GET | `/internal/users/by-email?email` | Nội bộ | Tìm user theo email (không phân biệt hoa thường), 404 nếu không có; trả cả `status` và `admin`. Event dùng để mời thành viên tổ chức, thêm STAFF |
 | POST | `/internal/users/batch` | Nội bộ | Tối đa 500 id |
 
 Lưu ý cho SPA:
@@ -179,8 +179,7 @@ Lưu ý cho SPA:
 | GET | `/api/categories` | Công khai | Danh mục; slug sinh từ tên |
 | POST, PUT, DELETE | `/api/categories`, `/api/categories/{id}` | ADMIN | Không xóa được danh mục đang dùng |
 | GET | `/api/venues?city`, `/api/venues/{id}` | Công khai | Địa điểm |
-| POST | `/api/venues` | Đăng nhập | Thêm địa điểm |
-| PUT, DELETE | `/api/venues/{id}` | ADMIN | Không xóa được địa điểm đang dùng |
+| POST, PUT, DELETE | `/api/venues`, `/api/venues/{id}` | ADMIN | Thêm, sửa, xóa; không xóa được địa điểm đang dùng |
 | GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket |
 | GET | `/internal/events/{id}/access?userId` | Nội bộ | `canManage, canCheckIn`: Ticket và Order dùng để kiểm tra quyền thay vì so `organizerId` |
 

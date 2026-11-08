@@ -17,8 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -80,12 +82,12 @@ class EventApiIT {
     }
 
     private final HttpClient http = HttpClient.newHttpClient();
-    private final Caller admin = new Caller(UUID.randomUUID(), "ATTENDEE,ADMIN");
-    private final Caller organizer = new Caller(UUID.randomUUID(), "ATTENDEE");
-    private final Caller otherOrganizer = new Caller(UUID.randomUUID(), "ATTENDEE");
-    private final Caller attendee = new Caller(UUID.randomUUID(), "ATTENDEE");
-    private final Caller outsider = new Caller(UUID.randomUUID(), "ATTENDEE");
-    private final Caller member = new Caller(UUID.randomUUID(), "ATTENDEE");
+    private final Caller admin = new Caller(UUID.randomUUID(), "USER,ADMIN");
+    private final Caller organizer = new Caller(UUID.randomUUID(), "USER");
+    private final Caller otherOrganizer = new Caller(UUID.randomUUID(), "USER");
+    private final Caller attendee = new Caller(UUID.randomUUID(), "USER");
+    private final Caller outsider = new Caller(UUID.randomUUID(), "USER");
+    private final Caller member = new Caller(UUID.randomUUID(), "USER");
 
     @LocalServerPort
     int port;
@@ -111,6 +113,9 @@ class EventApiIT {
     @MockitoBean
     ImageStorage images;
 
+    /** User mà Identity giả báo là đã bị khóa. */
+    private final Set<UUID> locked = new HashSet<>();
+
     /** Identity giả: email `<uuid>@test.local` thuộc user có id đó; email khác không tồn tại. */
     @BeforeEach
     void fakeIdentity() {
@@ -123,11 +128,12 @@ class EventApiIT {
             return contact(UUID.fromString(email.substring(0, email.indexOf('@'))));
         });
         when(identity.getBatch(any())).thenAnswer(call -> ((IdentityClient.UserBatch) call.getArgument(0)).ids()
-                .stream().map(EventApiIT::contact).toList());
+                .stream().map(this::contact).toList());
     }
 
-    private static IdentityClient.UserContact contact(UUID id) {
-        return new IdentityClient.UserContact(id, id + "@test.local", "Người dùng " + id.toString().substring(0, 4));
+    private IdentityClient.UserContact contact(UUID id) {
+        return new IdentityClient.UserContact(id, id + "@test.local", "Người dùng " + id.toString().substring(0, 4),
+                locked.contains(id) ? "LOCKED" : "ACTIVE", id.equals(admin.id()));
     }
 
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 'I', 'H'};
@@ -181,7 +187,7 @@ class EventApiIT {
 
     private String createVenue(String city) {
         Response response = send("POST", "/api/venues",
-                Map.of("name", "Hội trường A", "address", "1 Lê Duẩn", "city", city, "capacity", 500), organizer);
+                Map.of("name", "Hội trường A", "address", "1 Lê Duẩn", "city", city, "capacity", 500), admin);
         assertThat(response.status()).isEqualTo(201);
         return response.text("id");
     }
@@ -481,6 +487,46 @@ class EventApiIT {
         assertThat(send("GET", "/api/events/" + id + "/staff", null, organizer).body().size()).isZero();
         assertThat(send("PUT", "/api/events/" + id + "/host", Map.of("userId", staff.id()), organizer).code())
                 .isEqualTo("PERSONAL_EVENT");
+    }
+
+    @Test
+    void onlyAdminManagesVenues() {
+        Map<String, Object> venue = Map.of("name", "Phòng 201", "address", "1 Lê Duẩn", "city", "Huế");
+        assertThat(send("POST", "/api/venues", venue, organizer).status()).isEqualTo(403);
+        assertThat(send("POST", "/api/venues", venue, admin).status()).isEqualTo(201);
+    }
+
+    @Test
+    void adminAndLockedAccountsCannotBeGivenEventRoles() {
+        String org = createOrganization(organizer);
+        assertThat(invite(org, admin, "MEMBER", organizer).code()).isEqualTo("USER_IS_ADMIN");
+        locked.add(outsider.id());
+        assertThat(invite(org, outsider, "MEMBER", organizer).code()).isEqualTo("USER_LOCKED");
+
+        String staff = "/api/events/" + createDraft(organizer, futureEvent("Không giao quyền", "Huế")) + "/staff";
+        assertThat(send("POST", staff, Map.of("email", email(admin)), organizer).code()).isEqualTo("USER_IS_ADMIN");
+        assertThat(send("POST", staff, Map.of("email", email(outsider)), organizer).code()).isEqualTo("USER_LOCKED");
+
+        // Thành viên bị khóa sau khi vào tổ chức thì không nhận làm HOST được.
+        assertThat(invite(org, member, "MEMBER", organizer).status()).isEqualTo(201);
+        Map<String, Object> body = futureEvent("Sự kiện tổ chức", "Huế");
+        body.put("organizationId", org);
+        String id = createDraft(organizer, body);
+        locked.add(member.id());
+        assertThat(send("PUT", "/api/events/" + id + "/host", Map.of("userId", member.id()), organizer).code())
+                .isEqualTo("USER_LOCKED");
+    }
+
+    @Test
+    void cancelledEventKeepsItsTeam() {
+        String id = publish(organizer, futureEvent("Đã hủy thì thôi", "Huế"));
+        String staff = "/api/events/" + id + "/staff";
+        assertThat(send("POST", staff, Map.of("email", email(attendee)), organizer).status()).isEqualTo(201);
+        send("PUT", "/api/events/" + id + "/cancel", null, organizer);
+
+        assertThat(send("POST", staff, Map.of("email", email(outsider)), organizer).code())
+                .isEqualTo("EVENT_STATUS_INVALID");
+        assertThat(send("DELETE", staff + "/" + attendee.id(), null, organizer).code()).isEqualTo("EVENT_STATUS_INVALID");
     }
 
     @Test

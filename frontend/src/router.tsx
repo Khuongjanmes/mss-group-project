@@ -56,7 +56,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/organizer',
-    element: <RequireRole role="ATTENDEE" exclude="ADMIN" />,
+    element: <RequireRole role="USER" exclude="ADMIN" />,
     children: [
       {
         element: <OrganizerLayout />,

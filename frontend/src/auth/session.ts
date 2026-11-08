@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-export type Role = 'ATTENDEE' | 'ADMIN';
+export type Role = 'USER' | 'ADMIN';
 
 /** UserResponse của Identity. */
 export interface SessionUser {

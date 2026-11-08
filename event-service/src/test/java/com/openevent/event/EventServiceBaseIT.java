@@ -87,7 +87,7 @@ class EventServiceBaseIT {
 
         assertThat(get("/api/events/my").statusCode()).isEqualTo(401);
         assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "ADMIN").statusCode()).isEqualTo(403);
-        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "ATTENDEE").statusCode()).isEqualTo(200);
+        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "USER").statusCode()).isEqualTo(200);
     }
 
     @Test

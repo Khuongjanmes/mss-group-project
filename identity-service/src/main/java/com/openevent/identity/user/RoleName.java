@@ -1,5 +1,5 @@
 package com.openevent.identity.user;
 
 public enum RoleName {
-    ATTENDEE, ADMIN
+    USER, ADMIN
 }

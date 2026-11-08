@@ -93,8 +93,8 @@ class GatewaySecurityConfig {
                         .pathMatchers("/api/users/**").hasRole(ADMIN)
 
                         .pathMatchers(HttpMethod.PUT, "/api/events/*/approve", "/api/events/*/reject").hasRole(ADMIN)
-                        .pathMatchers("/api/categories/**").hasRole(ADMIN)
-                        // Sự kiện, tổ chức, địa điểm, loại vé, check-in: ai đăng nhập cũng gọi được;
+                        .pathMatchers("/api/categories/**", "/api/venues/**").hasRole(ADMIN)
+                        // Sự kiện, tổ chức, loại vé, check-in: ai đăng nhập cũng gọi được;
                         // service tự kiểm tra quyền theo tổ chức và sự kiện (BR-14).
 
                         .pathMatchers(HttpMethod.GET, "/api/payments").hasRole(ADMIN)

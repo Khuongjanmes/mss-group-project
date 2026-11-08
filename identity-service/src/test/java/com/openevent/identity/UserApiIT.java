@@ -44,7 +44,7 @@ class UserApiIT extends IdentityIntegrationTest {
 
     @Test
     void meForUnknownUserIsUnauthorized() {
-        Caller ghost = new Caller(UUID.randomUUID().toString(), "ATTENDEE");
+        Caller ghost = new Caller(UUID.randomUUID().toString(), "USER");
 
         assertThat(send("GET", "/api/users/me", null, ghost).status()).isEqualTo(401);
     }
@@ -243,7 +243,7 @@ class UserApiIT extends IdentityIntegrationTest {
 
     @Test
     void wrongMethodReturnsJson405() {
-        Response response = send("DELETE", "/api/users/me", null, new Caller(UUID.randomUUID().toString(), "ATTENDEE"));
+        Response response = send("DELETE", "/api/users/me", null, new Caller(UUID.randomUUID().toString(), "USER"));
 
         assertThat(response.status()).isEqualTo(405);
         assertThat(response.body().path("status").asInt()).isEqualTo(405);

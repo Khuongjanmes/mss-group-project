@@ -103,7 +103,7 @@ public abstract class IdentityIntegrationTest {
     }
 
     protected Caller attendee(Response auth) {
-        return new Caller(auth.body().path("user").path("id").asString(), "ATTENDEE");
+        return new Caller(auth.body().path("user").path("id").asString(), "USER");
     }
 
     protected Caller admin() {

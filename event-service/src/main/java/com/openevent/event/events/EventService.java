@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.openevent.common.messaging.events.EventCancelled;
@@ -50,6 +51,8 @@ public class EventService {
     private final UserDirectory users;
     private final ImageStorage images;
     private final ApplicationEventPublisher publisher;
+    /** Cho các thao tác gọi Identity hoặc Cloudinary: không giữ kết nối DB trong lúc chờ mạng. */
+    private final TransactionTemplate tx;
 
     /** Khách chỉ thấy sự kiện PUBLISHED, sắp diễn ra trước. */
     @Transactional(readOnly = true)
@@ -151,35 +154,30 @@ public class EventService {
         return EventResponse.from(event);
     }
 
-    /** BR-14: HOST mới phải là thành viên tổ chức; sự kiện cá nhân không đổi HOST. */
-    @Transactional
+    /** BR-14: HOST mới phải là thành viên tổ chức, còn hoạt động và không phải Admin; sự kiện cá nhân không đổi HOST. */
     public EventResponse assignHost(UUID callerId, UUID id, UUID hostId) {
-        Event event = requireManaged(callerId, id);
-        if (event.getOrganizationId() == null) {
-            throw new ApiException(HttpStatus.CONFLICT, "PERSONAL_EVENT", "Sự kiện cá nhân không đổi HOST được");
-        }
-        if (organizations.findMembership(event.getOrganizationId(), hostId).isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "HOST_NOT_MEMBER", "HOST mới phải là thành viên tổ chức");
-        }
-        event.assignHost(hostId);
-        return EventResponse.from(event);
+        tx.executeWithoutResult(status -> requireHostChange(callerId, id, hostId));
+        users.requireAssignable(hostId);
+        return tx.execute(status -> {
+            Event event = requireHostChange(callerId, id, hostId);
+            event.assignHost(hostId);
+            return EventResponse.from(event);
+        });
     }
 
-    @Transactional(readOnly = true)
     public List<StaffResponse> staff(UUID callerId, UUID id) {
-        Set<UUID> staff = requireManaged(callerId, id).staff();
+        Set<UUID> staff = tx.execute(status -> Set.copyOf(requireManaged(callerId, id).staff()));
         Map<UUID, UserContact> contacts = users.contacts(staff);
         return staff.stream().map(userId -> toStaff(userId, contacts.get(userId)))
                 .sorted(Comparator.comparing(member -> member.fullName() == null ? "" : member.fullName()))
                 .toList();
     }
 
-    /** STAFF thêm bằng email; ai cũng làm STAFF được, kể cả người ngoài tổ chức. */
-    @Transactional
+    /** STAFF thêm bằng email; tài khoản nào còn hoạt động (trừ Admin) cũng làm STAFF được, kể cả người ngoài tổ chức. */
     public StaffResponse addStaff(UUID callerId, UUID id, String email) {
-        Event event = requireManaged(callerId, id);
-        UserContact user = users.findByEmail(email);
-        event.addStaff(user.id());
+        tx.executeWithoutResult(status -> requireManaged(callerId, id).requireActive());
+        UserContact user = users.findAssignable(email);
+        tx.executeWithoutResult(status -> requireManaged(callerId, id).addStaff(user.id()));
         return toStaff(user.id(), user);
     }
 
@@ -192,10 +190,8 @@ public class EventService {
      * Tải ảnh bìa lên kho ảnh, trả về đường dẫn; ảnh chỉ gắn vào sự kiện khi người dùng bấm lưu (cùng form sửa).
      * Chỉ người quản lý sự kiện, khi sự kiện còn sửa được.
      */
-    @Transactional(readOnly = true)
     public UploadedImage uploadImage(UUID callerId, UUID id, MultipartFile file) {
-        Event event = requireManaged(callerId, id);
-        event.requireEditable();
+        tx.executeWithoutResult(status -> requireManaged(callerId, id).requireEditable());
         ImageFiles.validate(file);
         return images.upload(file, "openevent/events/" + id);
     }
@@ -238,6 +234,18 @@ public class EventService {
     /** BR-09: người quản lý hoặc STAFF. */
     private boolean canCheckIn(Event event, UUID userId) {
         return event.isStaff(userId) || canManage(event, userId);
+    }
+
+    private Event requireHostChange(UUID callerId, UUID id, UUID hostId) {
+        Event event = requireManaged(callerId, id);
+        event.requireActive();
+        if (event.getOrganizationId() == null) {
+            throw new ApiException(HttpStatus.CONFLICT, "PERSONAL_EVENT", "Sự kiện cá nhân không đổi HOST được");
+        }
+        if (organizations.findMembership(event.getOrganizationId(), hostId).isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "HOST_NOT_MEMBER", "HOST mới phải là thành viên tổ chức");
+        }
+        return event;
     }
 
     private Event requireManaged(UUID callerId, UUID id) {

@@ -24,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
-/** Địa điểm dùng chung cho mọi sự kiện, theo trang Địa điểm tổ chức của openevent. Ban tổ chức thêm được, Admin sửa, xóa. */
+/** Địa điểm dùng chung cho mọi sự kiện, theo trang Địa điểm tổ chức của openevent. Chỉ Admin thêm, sửa, xóa. */
 export default function VenuesPage() {
   const [cityInput, setCityInput] = useState('');
   const [city, setCity] = useState('');

@@ -104,6 +104,7 @@ public class Event {
     }
 
     public void assignHost(UUID hostId) {
+        requireActive();
         organizerId = hostId;
     }
 
@@ -116,11 +117,20 @@ public class Event {
     }
 
     public void addStaff(UUID userId) {
+        requireActive();
         staff.add(userId);
     }
 
     public void removeStaff(UUID userId) {
+        requireActive();
         staff.remove(userId);
+    }
+
+    /** Sự kiện đã hủy hoặc đã kết thúc thì không đổi HOST, STAFF nữa. */
+    public void requireActive() {
+        if (status == EventStatus.CANCELLED || status == EventStatus.COMPLETED) {
+            throw statusInvalid("Sự kiện đã hủy hoặc đã kết thúc");
+        }
     }
 
     /** Chỉ sửa khi chưa gửi duyệt hoặc bị từ chối; sự kiện đã công bố không đổi nội dung. */

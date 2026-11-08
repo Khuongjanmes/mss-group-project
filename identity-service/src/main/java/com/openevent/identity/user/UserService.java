@@ -106,7 +106,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserContactResponse> getContacts(Collection<UUID> ids) {
-        return users.findAllById(ids).stream().map(UserContactResponse::from).toList();
+        return users.findAllByIdIn(ids).stream().map(UserContactResponse::from).toList();
     }
 
     /** JWT còn hạn không phản ánh việc vừa bị khóa, nên kiểm tra lại trong database (BR-12). */

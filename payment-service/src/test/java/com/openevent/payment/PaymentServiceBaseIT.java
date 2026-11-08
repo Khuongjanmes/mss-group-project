@@ -83,10 +83,10 @@ class PaymentServiceBaseIT {
     void pingReceivesIdentityFromGatewayHeaders() throws Exception {
         String userId = UUID.randomUUID().toString();
 
-        HttpResponse<String> response = get("/api/payments/ping", "X-User-Id", userId, "X-User-Roles", "ATTENDEE");
+        HttpResponse<String> response = get("/api/payments/ping", "X-User-Id", userId, "X-User-Roles", "USER");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("payment-service", userId, "ATTENDEE");
+        assertThat(response.body()).contains("payment-service", userId, "USER");
     }
 
     @Test

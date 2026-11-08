@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "identity-service")
 public interface IdentityClient {
 
-    record UserContact(UUID id, String email, String fullName) {
+    /** {@code status} là ACTIVE hoặc LOCKED. */
+    record UserContact(UUID id, String email, String fullName, String status, boolean admin) {
     }
 
     record UserBatch(Collection<UUID> ids) {

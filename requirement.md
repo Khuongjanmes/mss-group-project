@@ -27,7 +27,7 @@ Hệ thống hợp với microservices vì các miền nghiệp vụ tách biệ
 
 ### 1.2 Vai trò người dùng và chức năng
 
-Hệ thống có 2 vai trò: Attendee (mọi tài khoản đăng ký) và Admin. Không có vai trò Organizer riêng: tài khoản nào (trừ Admin) cũng tạo được tổ chức và sự kiện, và trở thành ban tổ chức của sự kiện đó; Admin duyệt từng sự kiện trước khi công bố. Khách chưa đăng nhập (Guest) chỉ xem được danh sách và chi tiết sự kiện.
+Hệ thống có 2 vai trò: USER (mọi tài khoản đăng ký; khi mua vé gọi là Attendee, khi tổ chức sự kiện gọi là Organizer) và ADMIN. Không có vai trò Organizer riêng: tài khoản nào (trừ Admin) cũng tạo được tổ chức và sự kiện, và trở thành ban tổ chức của sự kiện đó; Admin duyệt từng sự kiện trước khi công bố. Khách chưa đăng nhập (Guest) chỉ xem được danh sách và chi tiết sự kiện.
 
 Ngoài vai trò hệ thống (do Identity cấp, nằm trong JWT), Event Service quản lý thêm vai trò theo tổ chức và theo sự kiện:
 
@@ -110,7 +110,7 @@ Sự kiện không thuộc tổ chức nào (sự kiện cá nhân) chỉ có HO
 - **BR-11:** Mỗi giao dịch thanh toán có mã duy nhất (idempotency key), callback trùng không được xử lý hai lần. Mọi consumer RabbitMQ phải idempotent theo `messageId`.
 - **BR-12:** Tài khoản bị khóa không đăng nhập được và không tạo được đơn mới. Order hỏi trạng thái tài khoản từ Identity khi tạo đơn vì JWT còn hạn không phản ánh việc vừa bị khóa.
 - **BR-13:** Thanh toán thành công trên đơn đã EXPIRED hoặc CANCELLED không phát hành vé; thanh toán đó chuyển sang REFUND_PENDING.
-- **BR-14:** Mọi tài khoản trừ Admin đều tạo được tổ chức và sự kiện cá nhân; Admin không tổ chức sự kiện mà chỉ duyệt, hủy sự kiện và quản lý hệ thống. Mỗi tổ chức có đúng 1 OWNER; OWNER không rời được tổ chức mà phải chuyển quyền sở hữu cho một thành viên khác trước (OWNER cũ trở thành MANAGER). MEMBER mới được mời chưa có quyền tạo sự kiện. Mời thành viên bằng email tài khoản OpenEvent; Event hỏi Identity để lấy user id. Không xóa được thành viên đang làm HOST của sự kiện chưa kết thúc hoặc chưa hủy: phải đổi HOST trước. HOST mới phải là thành viên của tổ chức. Tổ chức của sự kiện được chọn lúc tạo và không đổi sau đó.
+- **BR-14:** Mọi tài khoản trừ Admin đều tạo được tổ chức và sự kiện cá nhân; Admin không tổ chức sự kiện mà chỉ duyệt, hủy sự kiện và quản lý hệ thống. Mỗi tổ chức có đúng 1 OWNER; OWNER không rời được tổ chức mà phải chuyển quyền sở hữu cho một thành viên khác trước (OWNER cũ trở thành MANAGER). MEMBER mới được mời chưa có quyền tạo sự kiện. Mời thành viên bằng email tài khoản OpenEvent; Event hỏi Identity để lấy user id. Không mời, giao HOST hay thêm STAFF cho tài khoản Admin hoặc tài khoản đã bị khóa. Không đổi HOST, thêm hay xóa STAFF khi sự kiện đã hủy hoặc đã kết thúc. Chỉ Admin thêm, sửa, xóa địa điểm dùng chung. Không xóa được thành viên đang làm HOST của sự kiện chưa kết thúc hoặc chưa hủy: phải đổi HOST trước. HOST mới phải là thành viên của tổ chức. Tổ chức của sự kiện được chọn lúc tạo và không đổi sau đó.
 
 ## 2. Thiết kế cơ sở dữ liệu
 
@@ -121,7 +121,7 @@ Mỗi service sở hữu một database riêng. Giữa các service không có k
 | Bảng | Cột chính |
 | --- | --- |
 | users | id (PK), email (unique), password_hash (null với tài khoản Google), full_name, phone, avatar_url, provider (LOCAL/GOOGLE), provider_subject (mã tài khoản Google), status (ACTIVE/LOCKED), created_at, updated_at |
-| roles | id (PK), name (ATTENDEE/ADMIN) |
+| roles | id (PK), name (USER/ADMIN) |
 | user_roles | user_id (FK), role_id (FK) |
 | refresh_tokens | id (PK), user_id (FK), token_hash (unique, SHA-256 của token), expires_at, revoked, created_at |
 
@@ -204,7 +204,7 @@ Năm service nối với RabbitMQ: Event phát sự kiện hủy, bốn service 
 | --- | --- | --- | --- | --- | --- |
 | API Gateway (8080) | Điểm vào duy nhất, kiểm tra JWT, phân quyền theo vai trò, định tuyến, CORS | — | /api/** | Định tuyến `lb://` qua Eureka | Thành viên 1 |
 | Eureka Server (8761) | Service discovery | — | Dashboard | — | Thành viên 1 |
-| Identity Service (8081) | Đăng ký, đăng nhập, cấp JWT, quản lý user/vai trò | PostgreSQL: identity_db | POST /api/auth/register, /login, /google, /refresh, /logout; GET, PUT /api/users/me; PUT /api/users/me/password; GET /api/users; PUT /api/users/{id}/lock, /unlock, /roles/organizer | Cung cấp GET /internal/users/{id}, GET /internal/users/by-email, POST /internal/users/batch | Thành viên 1 |
+| Identity Service (8081) | Đăng ký, đăng nhập, cấp JWT, quản lý user/vai trò | PostgreSQL: identity_db | POST /api/auth/register, /login, /google, /refresh, /logout; GET, PUT /api/users/me; PUT /api/users/me/password; GET /api/users; PUT /api/users/{id}/lock, /unlock | Cung cấp GET /internal/users/{id}, GET /internal/users/by-email, POST /internal/users/batch | Thành viên 1 |
 | Event Service (8082) | CRUD sự kiện, danh mục, địa điểm; tổ chức và phân quyền OWNER/MANAGER/MEMBER/HOST/STAFF; duyệt sự kiện; tìm kiếm, phân trang; job COMPLETED | PostgreSQL: event_db | GET /api/events?keyword&category&city&page, GET /api/events/{id}, POST /api/events, PUT /api/events/{id}/approve, PUT /api/events/{id}/host, /api/events/{id}/staff, POST /api/events/{id}/images (ảnh bìa lên Cloudinary); /api/organizations; nội bộ GET /internal/events/{id}, GET /internal/events/{id}/access?userId | Gọi Identity (Feign) tìm user theo email, lấy họ tên thành viên; phát EventCancelled | Thành viên 2 |
 | Ticket Service (8083) | Loại vé, giữ vé, phát hành vé QR, check-in; job nhả reservation hết hạn | PostgreSQL: ticket_db | POST /api/ticket-types, GET /api/ticket-types?eventId, POST /api/tickets/check-in; nội bộ POST /internal/reservations | Gọi Event, Identity (Feign); nhận OrderPaid, OrderCancelled, EventCancelled; phát TicketIssued, TicketsCancelled | Thành viên 3 |
 | Order Service (8084) | Tạo, hủy đơn; là một bên tham gia Saga; job hết hạn đơn | PostgreSQL: order_db | POST /api/orders, GET /api/orders/my, PUT /api/orders/{id}/cancel; nội bộ GET /internal/orders/{id} | Gọi Identity, Event, Ticket (Feign); nhận PaymentSucceeded/Failed, EventCancelled; phát OrderPaid, OrderCancelled, OrderRefundRequested | Thành viên 4 |
@@ -238,6 +238,10 @@ Nhóm triển khai 3 kịch bản OpenFeign chính (yêu cầu tối thiểu là
 1. Người quản lý sự kiện hoặc STAFF gọi POST /api/tickets/check-in với mã vé.
 2. Ticket gọi Event: GET /internal/events/{id}/access?userId= để xác minh người gọi có quyền check-in (`canCheckIn`), và GET /internal/events/{id} để kiểm tra hôm nay nằm trong khoảng ngày diễn ra (BR-09). Mỗi lần gọi thành công, Ticket cập nhật bản cache trong `ticket_types`. Ticket và Order không tự suy ra vai trò tổ chức: thống kê và danh sách người tham dự dùng `canManage` của cùng API.
 3. **Khi lỗi:** Event không phản hồi → fallback đọc bản cache trong `ticket_types`; bản cache chỉ có HOST (`event_organizer_id`), nên lúc này chỉ HOST check-in được.
+4. **Bắt buộc:** Gateway chỉ yêu cầu đăng nhập cho `/api/ticket-types/**` và `POST /api/tickets/check-in`, không kiểm tra vai trò. Vì vậy Ticket phải tự kiểm tra quyền ở mọi API này:
+   - Lấy `event_id` từ DB của Ticket (từ vé khi check-in, từ loại vé khi sửa, xóa loại vé); không tin `eventId` client gửi, trừ khi tạo loại vé mới.
+   - Gọi `GET /internal/events/{id}/access?userId=` và kiểm tra `canCheckIn` (check-in) hoặc `canManage` (loại vé, thống kê, danh sách người tham dự).
+   - Event lỗi mà fallback ở bước 3 không xác minh được thì từ chối (403 hoặc 503), không cho qua.
 
 **KB-4 (nâng cao): Saga hoàn tất đơn qua RabbitMQ (choreography)**
 

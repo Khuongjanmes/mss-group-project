@@ -5,7 +5,7 @@ public final class GatewayHeaders {
 
     public static final String USER_ID = "X-User-Id";
     public static final String USER_EMAIL = "X-User-Email";
-    /** Danh sách vai trò, cách nhau bằng dấu phẩy, ví dụ {@code ATTENDEE,ADMIN}. */
+    /** Danh sách vai trò, cách nhau bằng dấu phẩy, ví dụ {@code USER,ADMIN}. */
     public static final String USER_ROLES = "X-User-Roles";
 
     private GatewayHeaders() {

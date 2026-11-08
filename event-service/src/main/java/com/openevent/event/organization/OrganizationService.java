@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.openevent.common.web.ApiException;
 import com.openevent.event.client.IdentityClient.UserContact;
@@ -37,6 +38,8 @@ public class OrganizationService {
     private final OrganizationRepository organizations;
     private final EventRepository events;
     private final UserDirectory users;
+    /** Cho các thao tác gọi Identity: không giữ kết nối DB trong lúc chờ mạng. */
+    private final TransactionTemplate tx;
 
     @Transactional(readOnly = true)
     public List<OrganizationResponse> mine(UUID callerId) {
@@ -63,9 +66,8 @@ public class OrganizationService {
     }
 
     /** OWNER đứng đầu, rồi MANAGER, MEMBER; họ tên và email lấy từ Identity. */
-    @Transactional(readOnly = true)
     public List<MemberResponse> members(UUID callerId, UUID id) {
-        Map<UUID, Membership> members = requireMember(callerId, id).members();
+        Map<UUID, Membership> members = tx.execute(status -> Map.copyOf(requireMember(callerId, id).members()));
         Map<UUID, UserContact> contacts = users.contacts(members.keySet());
         return members.entrySet().stream()
                 .map(entry -> toResponse(entry.getKey(), entry.getValue(), contacts.get(entry.getKey())))
@@ -74,27 +76,24 @@ public class OrganizationService {
                 .toList();
     }
 
-    /** OWNER mời MANAGER hoặc MEMBER; MANAGER chỉ mời MEMBER. */
-    @Transactional
+    /** OWNER mời MANAGER hoặc MEMBER; MANAGER chỉ mời MEMBER. Kiểm tra quyền lại sau khi hỏi Identity. */
     public MemberResponse addMember(UUID callerId, UUID id, MemberRequest request) {
-        Organization organization = requireMember(callerId, id);
-        OrganizationRole callerRole = organization.requireMember(callerId).getRole();
-        boolean allowed = callerRole == OrganizationRole.OWNER
-                || callerRole == OrganizationRole.MANAGER && request.role() == OrganizationRole.MEMBER;
-        if (!allowed) {
-            throw forbidden(callerRole == OrganizationRole.MANAGER
-                    ? "MANAGER chỉ mời được MEMBER" : "Chỉ OWNER hoặc MANAGER mời được thành viên");
-        }
-        UserContact user = users.findByEmail(request.email());
-        organization.addMember(user.id(), request.role());
-        return toResponse(user.id(), organization.requireMember(user.id()), user);
+        tx.executeWithoutResult(status -> requireInviter(callerId, id, request.role()));
+        UserContact user = users.findAssignable(request.email());
+        return tx.execute(status -> {
+            Organization organization = requireInviter(callerId, id, request.role());
+            organization.addMember(user.id(), request.role());
+            return toResponse(user.id(), organization.requireMember(user.id()), user);
+        });
     }
 
-    @Transactional
     public MemberResponse changeMember(UUID callerId, UUID id, UUID userId, MemberUpdateRequest request) {
-        Organization organization = requireOwner(callerId, id);
-        organization.changeMember(userId, request.role(), request.canCreateEvents());
-        return toResponse(userId, organization.requireMember(userId), users.contacts(List.of(userId)).get(userId));
+        Membership membership = tx.execute(status -> {
+            Organization organization = requireOwner(callerId, id);
+            organization.changeMember(userId, request.role(), request.canCreateEvents());
+            return organization.requireMember(userId);
+        });
+        return toResponse(userId, membership, users.contacts(List.of(userId)).get(userId));
     }
 
     /** Ai cũng tự rời được (trừ OWNER); OWNER xóa ai cũng được; MANAGER chỉ xóa MEMBER. */
@@ -124,6 +123,18 @@ public class OrganizationService {
         organizations.flush();
         organization.promoteToOwner(newOwnerId);
         return OrganizationResponse.from(organization, callerId);
+    }
+
+    private Organization requireInviter(UUID callerId, UUID id, OrganizationRole invitedRole) {
+        Organization organization = requireMember(callerId, id);
+        OrganizationRole callerRole = organization.requireMember(callerId).getRole();
+        boolean allowed = callerRole == OrganizationRole.OWNER
+                || callerRole == OrganizationRole.MANAGER && invitedRole == OrganizationRole.MEMBER;
+        if (!allowed) {
+            throw forbidden(callerRole == OrganizationRole.MANAGER
+                    ? "MANAGER chỉ mời được MEMBER" : "Chỉ OWNER hoặc MANAGER mời được thành viên");
+        }
+        return organization;
     }
 
     /** Người ngoài tổ chức nhận 404 để không lộ tổ chức tồn tại. */
