@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardCheck, MapPin, Tags } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, CreditCard, MapPin, Tags } from 'lucide-react';
 
 import type { NavGroup } from '@/components/common/navigation';
 
@@ -17,5 +17,9 @@ export const adminNav: NavGroup[] = [
       { title: 'Danh mục sự kiện', to: '/admin/categories', icon: Tags },
       { title: 'Địa điểm', to: '/admin/venues', icon: MapPin },
     ],
+  },
+  {
+    label: 'Thanh toán',
+    items: [{ title: 'Giao dịch', to: '/admin/payments', icon: CreditCard }],
   },
 ];
