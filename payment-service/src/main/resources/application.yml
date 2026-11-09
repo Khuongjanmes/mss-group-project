@@ -74,3 +74,18 @@ openevent:
   security:
     public-paths:
       - GET /api/payments/vnpay-return
+      - POST /api/payments/payos-webhook
+  payment:
+    # Sau khi thanh toán, trình duyệt được chuyển về <frontend-url>/payments/result.
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+    # Thứ tự: payOS nếu đủ 3 khóa, rồi VNPay, cuối cùng là cổng giả lập (MOCK).
+    payos:
+      client-id: ${PAYOS_CLIENT_ID:}
+      api-key: ${PAYOS_API_KEY:}
+      checksum-key: ${PAYOS_CHECKSUM_KEY:}
+      base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
+    vnpay:
+      tmn-code: ${VNPAY_TMN_CODE:}
+      hash-secret: ${VNPAY_HASH_SECRET:}
+      pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      return-url: ${VNPAY_RETURN_URL:http://localhost:8080/api/payments/vnpay-return}

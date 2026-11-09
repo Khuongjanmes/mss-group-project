@@ -1,23 +1,24 @@
 package com.openevent.payment.messaging;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import com.openevent.common.messaging.events.OrderRefundRequested;
+import com.openevent.payment.payments.PaymentService;
 
-/** Khung nhận sự kiện theo requirement.md mục 3.2 và KB-4, KB-5. */
+import lombok.RequiredArgsConstructor;
+
+/** Order yêu cầu hoàn tiền khi hủy sự kiện hoặc thanh toán đến sau khi đơn hết hạn (KB-4, KB-5). */
 @Component
 @RabbitListener(queues = MessagingConfig.QUEUE)
+@RequiredArgsConstructor
 public class PaymentEventListener {
 
-    private static final Logger log = LoggerFactory.getLogger(PaymentEventListener.class);
+    private final PaymentService paymentService;
 
     @RabbitHandler
     public void on(OrderRefundRequested event) {
-        // TODO: xử lý nghiệp vụ; bỏ qua nếu event.messageId() đã xử lý (BR-11).
-        log.info("Nhận OrderRefundRequested: {}", event.messageId());
+        paymentService.requestRefund(event);
     }
 }

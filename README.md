@@ -10,8 +10,8 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [api-gateway/](api-gateway/) | 8080 | — | TV1 | Hoàn thành |
 | [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 | Hoàn thành |
 | [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 | Khung |
-| [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 | Khung |
-| [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 | Khung |
+| [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 | Hoàn thành |
+| [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 | Khung |
 | [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 | Khung |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
@@ -186,3 +186,23 @@ Lưu ý cho SPA:
 "Người quản lý" sự kiện là HOST (`organizerId`), hoặc OWNER/MANAGER của tổ chức sở hữu sự kiện; MEMBER chỉ quản lý sự kiện mình làm HOST. Bảng quyền đầy đủ ở mục 1.2 của [requirement.md](requirement.md).
 
 Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETED.
+
+## API Payment
+
+| Method | Đường dẫn | Quyền | Mô tả |
+| --- | --- | --- | --- |
+| POST | `/api/payments` | Đăng nhập | `{"orderId"}`: hỏi Order (`/internal/orders/{id}`) số tiền và trạng thái, đơn phải của mình, PENDING, còn hạn. Trả `{payment, paymentUrl}` |
+| GET | `/api/payments/{id}` | Người trả tiền, ADMIN | Người khác nhận 404. Giao dịch payOS còn chờ thì hỏi lại payOS (`GET /v2/payment-requests/{orderCode}`) |
+| POST | `/api/payments/payos-webhook` | Công khai | payOS báo có tiền vào; kiểm tra chữ ký HMAC-SHA256 trên `data`, sai thì 400. orderCode không có trong hệ thống (dữ liệu thử) thì vẫn trả 200 |
+| GET | `/api/payments/vnpay-return` | Công khai | VNPay chuyển trình duyệt về; kiểm tra chữ ký HMAC-SHA512 rồi chuyển tiếp tới `<FRONTEND_URL>/payments/result?paymentId=` (hoặc `?error=`) |
+| POST | `/api/payments/{id}/mock-result` | Người trả tiền | `{"success"}`: chỉ với giao dịch cổng giả lập |
+| GET | `/api/payments?status&page&size` | ADMIN | Mọi giao dịch, mới nhất trước |
+| PUT | `/api/payments/{id}/refunded` | ADMIN | REFUND_PENDING → REFUNDED, sau khi đã hoàn tiền thủ công |
+
+- **Cổng thanh toán**, chọn theo thứ tự:
+  1. **payOS** khi có đủ `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`: người mua quét VietQR, tiền vào tài khoản ngân hàng đã liên kết ở my.payos.vn. payOS **không có sandbox**, thử bằng số tiền nhỏ.
+  2. **VNPay sandbox** khi có `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`.
+  3. **Cổng giả lập** khi không cấu hình gì: `paymentUrl` trỏ tới trang `/payments/{id}/mock` của SPA.
+- **Webhook payOS:** khai báo `https://<domain công khai>/api/payments/payos-webhook` ở my.payos.vn. Chạy ở máy cá nhân thì payOS không gọi vào được; trang kết quả tự hỏi lại payOS nên vẫn cập nhật được trạng thái.
+- **Message:** phát `PaymentSucceeded` hoặc `PaymentFailed` sau khi commit; nhận `OrderRefundRequested` thì chuyển giao dịch SUCCESS của đơn sang REFUND_PENDING (bỏ qua message trùng theo `messageId`).
+- **Callback trùng (BR-11):** khóa dòng theo `transaction_ref`; mọi callback được ghi vào `payment_logs`, giao dịch đã xử lý thì không đổi nữa.
