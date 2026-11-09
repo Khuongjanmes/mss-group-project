@@ -89,6 +89,28 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 ./mvnw -pl order-service -am verify     # một service
 ```
 
+## Quy trình làm việc trên GitHub
+
+Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review → merge**. Không push thẳng `main` hay `develop`.
+
+1. **Issue trước khi code.** Tạo bằng mẫu *Chức năng* hoặc *Lỗi*, có tiêu chí chấp nhận, người nhận (Assignees), label (`type:`, `module:`, `priority:`), milestone theo checkpoint (`CP1`–`CP4`) và gắn vào Project board.
+2. **Nhánh** tạo từ `develop`, tên `feature/<số issue>-<service>-<tính năng>`, ví dụ `feature/8-ticket-check-in`. Việc cấu hình dùng `chore/`, sửa lỗi dùng `fix/`.
+3. **Commit** nhỏ, mỗi commit build được, theo Conventional Commits và có `Refs #<số issue>` ở dòng mô tả:
+   ```bash
+   git commit -m "feat(ticket): check-in bằng mã vé" -m "Refs #8"
+   ```
+   Dùng email trùng với tài khoản GitHub để commit được tính cho đúng người.
+4. **Pull request** vào `develop` theo mẫu: dòng đầu `Closes #<số issue>`, mục *Cách kiểm thử* ghi lệnh đã chạy. CODEOWNERS tự mời người phụ trách service review.
+5. **Review:** ít nhất một người **khác người viết** approve. Bị yêu cầu sửa thì thêm commit mới, không force-push sau khi đã có review.
+6. **Merge** khi đã được approve và test qua; xóa nhánh sau khi merge. Issue chuyển sang Done trên board.
+
+| Thành viên | Tài khoản | Phụ trách |
+| --- | --- | --- |
+| TV1 (nhóm trưởng) | @YuiGuende | Identity, Gateway, Eureka, Notification, hạ tầng |
+| TV2 | @duev-dev | Event, Payment |
+| TV3 | @TranQuan1105 | Ticket |
+| TV4 | @Khuongjanmes | Order |
+
 ## Quy ước khi viết service
 
 **Lấy người gọi hiện tại.** Gateway xác minh JWT rồi truyền `X-User-Id`, `X-User-Email`, `X-User-Roles`. `common-lib` đã chuyển chúng thành principal:
