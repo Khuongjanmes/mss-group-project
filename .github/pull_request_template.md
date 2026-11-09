@@ -10,6 +10,7 @@ Closes #<!-- số issue -->
 <!-- Với thay đổi giao diện. Bỏ trống nếu không có -->
 
 ## Checklist
+<!-- Quy trình đầy đủ: CONTRIBUTING.md -->
 - [ ] Có issue và PR này ghi `Closes #<số issue>`
 - [ ] Mỗi commit theo Conventional Commits và có `Refs #<số issue>`
 - [ ] `./mvnw verify` (service đã sửa) hoặc `npm run build` (frontend) chạy qua

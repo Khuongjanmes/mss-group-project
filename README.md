@@ -93,6 +93,8 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 
 Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review → merge**. Không push thẳng `main` hay `develop`.
 
+Hướng dẫn từng bước kèm lệnh và checklist: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 1. **Issue trước khi code.** Tạo bằng mẫu *Chức năng* hoặc *Lỗi*, có tiêu chí chấp nhận, người nhận (Assignees), label (`type:`, `module:`, `priority:`), milestone theo checkpoint (`CP1`–`CP4`) và gắn vào Project board.
 2. **Nhánh** tạo từ `develop`, tên `feature/<số issue>-<service>-<tính năng>`, ví dụ `feature/8-ticket-check-in`. Việc cấu hình dùng `chore/`, sửa lỗi dùng `fix/`.
 3. **Commit** nhỏ, mỗi commit build được, theo Conventional Commits và có `Refs #<số issue>` ở dòng mô tả:
