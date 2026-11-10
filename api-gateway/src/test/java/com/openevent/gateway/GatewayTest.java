@@ -213,6 +213,7 @@ class GatewayTest {
     void vnpayReturnPassesAuthenticationWithoutToken() throws Exception {
         // payment-service trong test trỏ vào cổng chết: 503 nghĩa là request đã qua lớp xác thực.
         assertThat(get("/api/payments/vnpay-return").statusCode()).isEqualTo(503);
+        assertThat(send("POST", "/api/payments/payos-webhook", "{}").statusCode()).isEqualTo(503);
     }
 
     @Test
