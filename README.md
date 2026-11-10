@@ -232,5 +232,9 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 | GET | `/api/ticket-types?eventId`, `/api/ticket-types/{id}` | Công khai | Loại vé kèm `available` (tổng trừ đã bán và đang giữ) |
 | POST | `/api/ticket-types` | Người quản lý sự kiện | `{eventId, name, price, totalQuantity, saleStart, saleEnd}`; mở bán kết thúc trước khi sự kiện bắt đầu (BR-07) |
 | PUT, DELETE | `/api/ticket-types/{id}` | Người quản lý sự kiện | Sự kiện lấy từ loại vé trong DB. Không giảm tổng dưới đã bán cộng đang giữ (BR-06); chỉ xóa loại chưa từng được giữ |
+| POST | `/internal/reservations` | Nội bộ | `{orderId, items:[{ticketTypeId, quantity}]}`: giữ vé 10 phút, tất cả hoặc không; hết vé hoặc chưa mở bán trả 409; gọi lại cùng `orderId` trả phần đã giữ. Trả `unitPrice` để Order tính tiền |
 
 - **Quyền:** Gateway chỉ yêu cầu đăng nhập; Ticket hỏi Event `/internal/events/{id}/access` cho mọi thao tác ghi trên loại vé. Event lỗi thì từ chối (503).
+- **Chống bán vượt (BR-01):** giữ, nhả, bán đều là một câu `UPDATE` có điều kiện; các cột số lượng `updatable = false` nên JPA không ghi đè. Test `hundredConcurrentOrdersNeverOversell`: 100 đơn cùng lúc vào 10 vé, đúng 10 đơn giữ được.
+- **Message:** nhận `OrderCancelled` → nhả vé. Message trùng bị bỏ qua theo `messageId`.
+- **Job:** mỗi phút nhả vé giữ quá hạn 10 phút cộng 2 phút chờ (`openevent.ticket.release-grace`), để Order hết hạn đơn trước.
