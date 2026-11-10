@@ -1,0 +1,99 @@
+# Build + test các service Java bị ảnh hưởng bởi thay đổi.
+# - Sửa một service: chỉ test service đó (kèm common-lib nó phụ thuộc, nhờ -am).
+# - Sửa common-lib, pom.xml gốc, Maven wrapper hoặc chính workflow này: test tất cả service,
+#   vì common-lib chứa message RabbitMQ, bảo mật và định dạng lỗi dùng chung.
+# Mỗi service một job chạy song song; integration test (*IT) dùng Testcontainers (runner có sẵn Docker).
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "**/src/**"
+      - "**/pom.xml"
+      - ".mvn/**"
+      - "mvnw"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "**/src/**"
+      - "**/pom.xml"
+      - ".mvn/**"
+      - "mvnw"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read # paths-filter đọc danh sách file đổi của PR
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.pick.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - "common-lib/**"
+              - "pom.xml"
+              - ".mvn/**"
+              - "mvnw"
+              - ".github/workflows/backend-ci.yml"
+            eureka-server: ["eureka-server/**"]
+            api-gateway: ["api-gateway/**"]
+            identity-service: ["identity-service/**"]
+            event-service: ["event-service/**"]
+            ticket-service: ["ticket-service/**"]
+            order-service: ["order-service/**"]
+            payment-service: ["payment-service/**"]
+            notification-service: ["notification-service/**"]
+      - id: pick
+        env:
+          CHANGES: ${{ steps.filter.outputs.changes }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          ALL='["eureka-server","api-gateway","identity-service","event-service","ticket-service","order-service","payment-service","notification-service"]'
+          if [ "$EVENT" = "workflow_dispatch" ] || echo "$CHANGES" | jq -e 'index("shared")' > /dev/null; then
+            SERVICES="$ALL"
+          else
+            SERVICES=$(echo "$CHANGES" | jq -c '[.[] | select(. != "shared")]')
+          fi
+          echo "Service cần test: $SERVICES"
+          echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # một service đỏ không hủy các service khác
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
+    name: test (${{ matrix.service }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - name: Build & test ${{ matrix.service }}
+        run: ./mvnw -B -ntp -pl ${{ matrix.service }} -am verify
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.service }}
+          path: |
+            **/target/surefire-reports
+            **/target/failsafe-reports
+          if-no-files-found: ignore
