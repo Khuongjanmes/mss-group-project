@@ -2,6 +2,8 @@ package com.openevent.ticket.tickets;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -33,6 +35,10 @@ public class Ticket {
     }
 
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    /** Người soát vé đọc giờ Việt Nam, không phải ISO UTC. */
+    private static final DateTimeFormatter CHECKED_IN_AT =
+            DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy").withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -81,7 +87,7 @@ public class Ticket {
     /** Báo vé đã dùng hoặc đã hủy trước mọi kiểm tra khác, để người soát vé biết ngay lý do. */
     public void requireUsable() {
         if (status == Status.CHECKED_IN) {
-            throw new ApiException(HttpStatus.CONFLICT, "ALREADY_CHECKED_IN", "Vé đã check-in lúc " + checkedInAt);
+            throw new ApiException(HttpStatus.CONFLICT, "ALREADY_CHECKED_IN", "Vé đã check-in lúc " + CHECKED_IN_AT.format(checkedInAt));
         }
         if (status == Status.CANCELLED) {
             throw new ApiException(HttpStatus.CONFLICT, "TICKET_CANCELLED", "Vé đã bị hủy");

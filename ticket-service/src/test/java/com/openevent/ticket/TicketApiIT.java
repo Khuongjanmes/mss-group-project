@@ -210,8 +210,9 @@ class TicketApiIT extends TicketIntegrationTest {
         fakeEvents.get(eventId).staff().add(staff.id());
         Response checkedIn = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff);
         assertThat(checkedIn.text("status")).isEqualTo("CHECKED_IN");
-        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff).code())
-                .isEqualTo("ALREADY_CHECKED_IN");
+        Response again = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff);
+        assertThat(again.code()).isEqualTo("ALREADY_CHECKED_IN");
+        assertThat(again.text("message")).matches("Vé đã check-in lúc \\d{2}:\\d{2} \\d{2}/\\d{2}/\\d{4}");
         assertThat(send("POST", "/api/tickets/check-in", Map.of("code", "khong-co"), staff).code())
                 .isEqualTo("TICKET_NOT_FOUND");
 
