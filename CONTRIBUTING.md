@@ -3,8 +3,8 @@
 Làm theo đúng thứ tự dưới đây cho **mọi** tính năng, sửa lỗi hay việc cấu hình. Đề MSS301 chấm quy trình (issue, PR theo mẫu, nhánh, board, milestone) và chấm điểm cá nhân theo lịch sử commit, nên bỏ bước nào là mất điểm bước đó.
 
 ```
-Issue ─► nhánh từ develop ─► code + test ─► commit (Refs #n) ─► kiểm thử ─► push
-      ─► PR (Closes #n) ─► review ─► sửa bằng commit mới ─► approve ─► merge (giữ nhánh)
+Issue ─► nhánh từ develop ─► code + test ─► commit (Refs: #n) ─► kiểm thử ─► push
+      ─► PR (Closes #n) ─► review ─► sửa bằng commit mới ─► approve ─► merge ─► xóa nhánh
 ```
 
 **4 quy tắc không được phá:**
@@ -25,6 +25,7 @@ git config --global user.email "email-cua-tai-khoan-github@..."   # sai email th
 git config --global pull.rebase true
 git config --global core.autocrlf true
 cp .env.example .env                                              # điền giá trị; .env không bao giờ commit
+git config commit.template .gitmessage                            # chạy trong thư mục repo: "git commit" mở sẵn mẫu Bước 4
 ```
 
 Kiểm tra email: mở một commit của mình trên GitHub, avatar và tên tài khoản phải hiện đúng.
@@ -35,7 +36,7 @@ GitHub → **Issues → New issue** → chọn mẫu **Chức năng** (hoặc **
 
 | Ô | Điền |
 | --- | --- |
-| Title | `[FEATURE] <Service>: <việc cần làm>`, ví dụ `[FEATURE] Ticket: check-in bằng mã vé` |
+| Title | **Tiếng Anh**: `[FEATURE] <Service>: <việc cần làm>` (hoặc `[BUG]`, `[CHORE]`), ví dụ `[FEATURE] Ticket: check in tickets by code`. Nội dung issue viết tiếng Việt |
 | Mô tả | Làm gì, cho vai trò nào, thuộc chức năng nào trong [requirement.md](requirement.md) mục 1.2 |
 | Tiêu chí chấp nhận | Checklist kiểm tra được: API trả mã gì, quy tắc BR-xx nào, test nào |
 | Assignees | Chính mình |
@@ -80,12 +81,37 @@ Front-end: chỉ gọi API qua Gateway (`src/api/*`), có trạng thái đang t�
 
 ## Bước 4. Commit
 
-Commit nhỏ, **mỗi commit build được**, theo Conventional Commits, dòng thứ hai là `Refs #<số issue>`:
+Viết theo quy ước của đề MSS301 (Conventional Commits). Áp dụng cho commit mới; commit đã merge giữ nguyên.
+
+```
+<type>(<scope>): <subject>
+                                   ← dòng trống
+<body: giải thích VÌ SAO, không chỉ liệt kê đã làm gì>
+                                   ← dòng trống
+Refs: #<số issue>
+```
+
+**Quy tắc bắt buộc:**
+
+1. Subject viết **tiếng Anh**, động từ nguyên mẫu (`add`, `implement`, không phải `added`), chữ thường, **≤ 72 ký tự**, không dấu chấm cuối.
+2. **1 commit = 1 thay đổi logic**, và mỗi commit build được. Không gộp "entity + API + message + frontend" vào một commit.
+3. Footer `Refs: #<số issue>` (có dấu `:`) để đối chiếu commit với issue.
+4. Thay đổi phá vỡ tương thích (đổi URL API, đổi schema, đổi message dùng chung) thì thêm `!` sau type/scope và footer `BREAKING CHANGE: <mô tả>`.
+5. Viết **tiếng Anh**: subject commit, tiêu đề PR (thành commit khi squash, xem Bước 9) và tiêu đề issue (Bước 1). Viết **tiếng Việt**: nội dung issue, mô tả PR và comment review. Body commit được viết tiếng Việt.
 
 ```bash
 git add ticket-service/src/main/java/...          # chỉ thêm file liên quan, không dùng "git add ." bừa
-git commit -m "feat(ticket): check-in bằng mã vé" -m "Refs #21"
+git commit                                        # mở trình soạn thảo theo mẫu .gitmessage (Bước 0)
+# hoặc viết nhanh trên một dòng lệnh:
+git commit -m "feat(ticket): check in tickets by code" -m "Staff scan QR at the gate, so look up the ticket by code." -m "Refs: #21"
 ```
+
+| ❌ Sai | ✅ Đúng |
+| --- | --- |
+| `update code` | `feat(order): create pending order and reserve tickets` |
+| `Fixed bug.` | `fix(gateway): strip client supplied user headers` |
+| `feat(ticket): check-in bằng mã vé` | `feat(ticket): check in tickets by code` |
+| `feat: thêm loại vé, giữ vé, check-in và frontend` | Tách thành nhiều commit, mỗi commit một thay đổi |
 
 | Loại | Dùng khi |
 | --- | --- |
@@ -96,7 +122,12 @@ git commit -m "feat(ticket): check-in bằng mã vé" -m "Refs #21"
 | `docs` | README, requirement.md, báo cáo |
 | `chore` | Cấu hình, build, CI, quy trình |
 
-Phần trong ngoặc là service: `identity`, `gateway`, `event`, `ticket`, `order`, `payment`, `notification`, `frontend`.
+Phần trong ngoặc (scope) là **tùy chọn**, ghi phạm vi bị sửa:
+- Service: `identity`, `gateway`, `event`, `ticket`, `order`, `payment`, `notification`, `frontend`.
+- Phạm vi chung: `docker` (Dockerfile, compose), `postman` (collection), `github` (mẫu issue/PR, CODEOWNERS).
+- Không thuộc phạm vi nào (ví dụ tài liệu quy trình chung như CONTRIBUTING.md) thì bỏ scope: `docs: adopt mss301 commit conventions`.
+
+Một commit chỉ có một scope; sửa nhiều service thì thường là nên tách commit (quy tắc 2).
 
 Trước mỗi lần commit, xem lại: `git status` và `git diff --staged`. Thấy `.env`, khóa API hay file build thì bỏ ra.
 
@@ -138,7 +169,7 @@ GitHub → **Compare & pull request**. Base: **`develop`**.
 
 | Ô | Điền |
 | --- | --- |
-| Title | Giống commit chính, ví dụ `feat(ticket): check-in bằng mã vé` |
+| Title | Theo quy ước commit ở Bước 4 (tiếng Anh), ví dụ `feat(ticket): check in tickets by code`. Khi squash, tiêu đề này thành commit trên `develop` |
 | Mô tả | Theo mẫu tự hiện: dòng đầu **`Closes #21`**, mục *Thay đổi*, *Cách kiểm thử*, *Ảnh chụp* (nếu có giao diện), checklist |
 | Reviewers | CODEOWNERS tự mời; nếu PR chỉ sửa service của mình, mời thêm một thành viên khác |
 | Assignees, Labels, Milestone | Giống issue |
@@ -182,15 +213,18 @@ Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open re
 
 **Vòng sửa:**
 
-- **Người viết:** sửa bằng **commit mới** (`fix(<scope>): ...`), push lên cùng nhánh; trả lời từng góp ý ("Đã sửa ở commit abc123"); bấm 🔄 **Re-request review** cạnh tên reviewer. **Không force-push** sau khi đã có review. Không tự bấm *Resolve*.
-- **Người review:** xem phần *Changes since your last review*, kiểm tra từng chỗ đã sửa, bấm **Resolve conversation** dưới góp ý đã xử lý xong, rồi Approve hoặc góp ý tiếp.
+**Người viết** khi bị yêu cầu sửa: sửa bằng **commit mới** (`fix(ticket): ...` + `Refs: #21`), push lên cùng nhánh, trả lời từng comment rồi bấm *Resolve*. **Không force-push** sau khi đã có review.
 
 ## Bước 9. Merge
 
 **Người viết (tác giả PR) merge**, reviewer không merge. Chỉ merge khi: đã có **ít nhất 1 approve**, mọi góp ý đã được reviewer resolve, test qua, không xung đột, PR không còn là draft.
 
-1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`, tiêu đề giữ dạng Conventional Commits, mô tả lấy từ PR. Merge commit chỉ dùng cho PR release vào `main` và PR back-merge (xem [Release vào main](#release-vào-main)).
-2. **Không xóa nhánh** (không bấm *Delete branch*, không `git branch -d`). Squash chỉ gộp commit trên `develop`; nhánh giữ lại các commit nhỏ của PR để xem lịch sử từng người. Nhánh đã merge thì không push thêm; việc mới luôn tạo nhánh mới từ `develop`.
+1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`. Trước khi bấm **Confirm squash and merge**, kiểm tra:
+   - Tiêu đề: `<type>(<scope>): <subject> (#<số PR>)`, tiếng Anh theo Bước 4, ví dụ `feat(ticket): check in tickets by code (#21)`.
+   - Mô tả: xóa danh sách commit con GitHub tự điền; giữ một đoạn ngắn vì sao, dòng `Closes #<số issue>` và các dòng `Co-authored-by:` nếu có.
+
+   Merge commit chỉ dùng cho PR release vào `main` và PR back-merge (xem [Release vào main](#release-vào-main)).
+2. Bấm **Delete branch**.
 3. Nếu issue chưa tự đóng (khi nhánh mặc định chưa phải `develop`): đóng tay, comment `Hoàn thành qua PR #<số>`.
 4. Board: issue sang **Done**.
 5. Trên máy:
@@ -208,7 +242,7 @@ Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open re
 [ ] 1. Issue: mẫu, tiêu chí chấp nhận, assignee, label type/module/priority, milestone CP, board
 [ ] 2. Nhánh: feature/<số>-<service>-<tính năng> từ develop mới nhất; board → In progress
 [ ] 3. Code: DTO + validation, ApiException, phân quyền, migration mới, unit test Mockito, IT
-[ ] 4. Commit: feat(<service>): ... + "Refs #<số>"; không .env / khóa / target / node_modules
+[ ] 4. Commit: feat(<service>): <english subject> + body vì sao + "Refs: #<số>"; 1 commit = 1 thay đổi; không .env / khóa / target / node_modules
 [ ] 5. Test: ./mvnw -pl <service> -am verify; npm run build; ghi kết quả
 [ ] 6. Chưa review: rebase develop + push --force-with-lease · Đã review: merge develop + push
 [ ] 7. PR vào develop: "Closes #<số>", cách kiểm thử, ảnh; reviewer; label/milestone; board → In review
@@ -238,7 +272,7 @@ Làm ở checkpoint nộp bài (ít nhất CP4). Nhóm trưởng thực hiện.
    git switch -c release/1.0.0
    git push -u origin release/1.0.0
    ```
-2. Mở PR `release/1.0.0` → **`main`**, cần **2 approval**. Trên nhánh này chỉ sửa lỗi nhỏ (commit `fix(...)` + `Refs #<issue lỗi>`).
+2. Mở PR `release/1.0.0` → **`main`**, cần **2 approval**. Trên nhánh này chỉ sửa lỗi nhỏ (commit `fix(...)` + `Refs: #<issue lỗi>`).
 3. Merge bằng **Create a merge commit** (không squash, để giữ lịch sử từng PR).
 4. Gắn tag và tạo GitHub Release:
    ```bash
@@ -287,3 +321,4 @@ Cả hai ruleset: **Bypass list → Repository admin**. Lý do: khi bật *Requi
 - Ghi rõ phần nào dùng AI vào **mục 3 của báo cáo** (System Architecture).
 - Người commit phải **hiểu và giải thích được mọi dòng** mình nộp; không giải thích được thì phần đó 0 điểm khi demo.
 - Đọc lại code AI sinh ra trước khi commit; không dán khóa API hay `.env` vào công cụ AI.
+- **Không** để dấu vết công cụ AI trong commit, PR, issue hay comment review: không có dòng `Co-Authored-By: Claude …` (hay của công cụ AI khác), không có dòng `🤖 Generated with …`, không có câu "soạn cùng AI". Công cụ tự thêm thì xóa trước khi commit hoặc trước khi tạo PR. Việc dùng AI chỉ khai báo trong báo cáo (mục 3). Commit được tính cho người commit, nên người đó chịu trách nhiệm toàn bộ nội dung.

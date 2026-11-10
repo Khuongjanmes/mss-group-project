@@ -95,9 +95,9 @@ Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review →
 
 1. **Issue trước khi code.** Tạo bằng mẫu *Chức năng* hoặc *Lỗi*, có tiêu chí chấp nhận, người nhận (Assignees), label (`type:`, `module:`, `priority:`), milestone theo checkpoint (`CP1`–`CP4`) và gắn vào Project board.
 2. **Nhánh** tạo từ `develop`, tên `feature/<số issue>-<service>-<tính năng>`, ví dụ `feature/8-ticket-check-in`. Việc cấu hình dùng `chore/`, sửa lỗi dùng `fix/`.
-3. **Commit** nhỏ, mỗi commit build được, theo Conventional Commits và có `Refs #<số issue>` ở dòng mô tả:
+3. **Commit** nhỏ (1 commit = 1 thay đổi logic), mỗi commit build được, theo Conventional Commits: subject **tiếng Anh**, body giải thích vì sao, footer `Refs: #<số issue>`. Chi tiết: [CONTRIBUTING.md Bước 4](CONTRIBUTING.md#bước-4-commit).
    ```bash
-   git commit -m "feat(ticket): check-in bằng mã vé" -m "Refs #8"
+   git commit -m "feat(ticket): check in tickets by code" -m "Refs: #8"
    ```
    Dùng email trùng với tài khoản GitHub để commit được tính cho đúng người.
 4. **Pull request** vào `develop` theo mẫu: dòng đầu `Closes #<số issue>`, mục *Cách kiểm thử* ghi lệnh đã chạy. CODEOWNERS tự mời người phụ trách service review.
