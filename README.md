@@ -102,7 +102,7 @@ Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review →
    Dùng email trùng với tài khoản GitHub để commit được tính cho đúng người.
 4. **Pull request** vào `develop` theo mẫu: dòng đầu `Closes #<số issue>`, mục *Cách kiểm thử* ghi lệnh đã chạy. CODEOWNERS tự mời người phụ trách service review.
 5. **Review:** ít nhất một người **khác người viết** approve. Bị yêu cầu sửa thì thêm commit mới, không force-push sau khi đã có review.
-6. **Merge** bằng *Squash and merge* khi đã được approve và test qua; xóa nhánh sau khi merge. Issue chuyển sang Done trên board.
+6. **Merge:** tác giả PR bấm *Squash and merge* khi đã được approve và test qua; **giữ nhánh**, không xóa sau khi merge. Issue chuyển sang Done trên board.
 
 ## Quy ước khi viết service
 

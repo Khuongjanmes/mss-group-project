@@ -4,7 +4,7 @@ Làm theo đúng thứ tự dưới đây cho **mọi** tính năng, sửa lỗi
 
 ```
 Issue ─► nhánh từ develop ─► code + test ─► commit (Refs #n) ─► kiểm thử ─► push
-      ─► PR (Closes #n) ─► review ─► sửa bằng commit mới ─► approve ─► merge ─► xóa nhánh
+      ─► PR (Closes #n) ─► review ─► sửa bằng commit mới ─► approve ─► merge (giữ nhánh)
 ```
 
 **4 quy tắc không được phá:**
@@ -185,18 +185,18 @@ Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open re
 
 ## Bước 9. Merge
 
-Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, test qua, không xung đột.
+**Người viết (tác giả PR) merge**, reviewer không merge. Chỉ merge khi: đã có **ít nhất 1 approve**, mọi góp ý đã được reviewer resolve, test qua, không xung đột, PR không còn là draft.
 
 1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`, tiêu đề giữ dạng Conventional Commits, mô tả lấy từ PR. Merge commit chỉ dùng cho PR release vào `main` và PR back-merge (xem [Release vào main](#release-vào-main)).
-2. Bấm **Delete branch**.
+2. **Không xóa nhánh** (không bấm *Delete branch*, không `git branch -d`). Squash chỉ gộp commit trên `develop`; nhánh giữ lại các commit nhỏ của PR để xem lịch sử từng người. Nhánh đã merge thì không push thêm; việc mới luôn tạo nhánh mới từ `develop`.
 3. Nếu issue chưa tự đóng (khi nhánh mặc định chưa phải `develop`): đóng tay, comment `Hoàn thành qua PR #<số>`.
 4. Board: issue sang **Done**.
 5. Trên máy:
    ```bash
    git switch develop
    git pull
-   git branch -d feature/21-ticket-check-in
    ```
+6. Nhận việc tiếp theo: quay lại Bước 1–2 với issue mới.
 
 ---
 
@@ -210,8 +210,10 @@ Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, 
 [ ] 5. Test: ./mvnw -pl <service> -am verify; npm run build; ghi kết quả
 [ ] 6. Chưa review: rebase develop + push --force-with-lease · Đã review: merge develop + push
 [ ] 7. PR vào develop: "Closes #<số>", cách kiểm thử, ảnh; reviewer; label/milestone; board → In review
-[ ] 8. Sửa theo review bằng commit mới, resolve comment
-[ ] 9. Approve → Squash and merge → xóa nhánh → đóng issue nếu chưa tự đóng → board Done → pull develop
+[ ] 8. Reviewer: Conversation → Commits → Files changed; góp ý blocker/suggestion/nit/question; Approve/Request changes
+       Tác giả: sửa bằng commit mới, trả lời, Re-request review; reviewer resolve
+[ ] 9. Tác giả merge: Squash and merge (giữ nhánh, không xóa) → đóng issue nếu chưa tự đóng → board Done
+       → git switch develop; git pull → nhận issue mới
 ```
 
 ## Cuối mỗi checkpoint: kiểm thử chéo
@@ -259,7 +261,7 @@ Làm ở checkpoint nộp bài (ít nhất CP4). Nhóm trưởng thực hiện.
 
 **Settings → General**
 - *Default branch*: `develop`, để `Closes #n` tự đóng issue khi PR merge vào `develop`.
-- *Pull Requests*: bật *Allow squash merging* với *Default commit message* = **Pull request title and description**; bật *Allow merge commits* (cho release và back-merge); **tắt** *Allow rebase merging*; bật *Automatically delete head branches*.
+- *Pull Requests*: bật *Allow squash merging* với *Default commit message* = **Pull request title and description**; bật *Allow merge commits* (cho release và back-merge); **tắt** *Allow rebase merging*; **tắt** *Automatically delete head branches* (nhóm giữ nhánh sau khi merge).
 
 **Settings → Rules → Rulesets** (repo Private dùng GitHub Free không có mục này thì coi bảng dưới là quy ước bắt buộc):
 
