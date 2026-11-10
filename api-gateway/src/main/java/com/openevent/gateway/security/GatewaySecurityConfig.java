@@ -49,8 +49,10 @@ class GatewaySecurityConfig {
 
     private static final String ADMIN = "ADMIN";
 
+    /** Đăng nhập, và webhook payOS (payment-service tự kiểm tra chữ ký). */
     private static final String[] PUBLIC_AUTH_ENDPOINTS = {
-            "/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/refresh", "/api/auth/logout"};
+            "/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/refresh", "/api/auth/logout",
+            "/api/payments/payos-webhook"};
 
     private static final String[] PUBLIC_READ_ENDPOINTS = {
             "/api/events/**", "/api/categories/**", "/api/venues/**", "/api/ticket-types/**",

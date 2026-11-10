@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import AdminEventsPage from './admin/AdminEventsPage';
 import AdminLayout from './admin/AdminLayout';
 import CategoriesPage from './admin/CategoriesPage';
+import PaymentsPage from './admin/PaymentsPage';
 import VenuesPage from './admin/VenuesPage';
 import { RequireRole } from './auth/RequireRole';
 import Layout from './components/Layout';
@@ -11,7 +12,9 @@ import EventDetailPage from './pages/EventDetailPage';
 import EventsPage from './pages/EventsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import MockPaymentPage from './pages/MockPaymentPage';
 import NotFoundPage from './pages/NotFoundPage';
+import PaymentResultPage from './pages/PaymentResultPage';
 import EventFormPage from './organizer/EventFormPage';
 import OrganizerEventsPage from './organizer/OrganizerEventsPage';
 import OrganizerLayout from './organizer/OrganizerLayout';
@@ -29,6 +32,13 @@ export const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'events', element: <EventsPage /> },
       { path: 'events/:id', element: <EventDetailPage /> },
+      {
+        element: <RequireRole role="USER" />,
+        children: [
+          { path: 'payments/result', element: <PaymentResultPage /> },
+          { path: 'payments/:id/mock', element: <MockPaymentPage /> },
+        ],
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -52,6 +62,7 @@ export const router = createBrowserRouter([
           },
           { path: 'categories', element: <CategoriesPage />, handle: { crumb: 'Danh mục sự kiện' } },
           { path: 'venues', element: <VenuesPage />, handle: { crumb: 'Địa điểm' } },
+          { path: 'payments', element: <PaymentsPage />, handle: { crumb: 'Giao dịch' } },
         ],
       },
     ],
