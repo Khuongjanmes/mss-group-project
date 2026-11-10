@@ -13,6 +13,7 @@ import { formatDateTime } from '@/lib/datetime';
 import { useMyOrganizations } from '@/organizer/useMyOrganizations';
 import { EventDetailView } from './EventDetailView';
 import { EventTeamCard } from './EventTeamCard';
+import { TicketTypesCard } from './TicketTypesCard';
 import { isEditable } from './EventRowActions';
 
 const STATUS_TEXT: Record<EventItem['status'], string> = {
@@ -121,7 +122,10 @@ export default function EventManageDetailPage({ area }: { area: 'organizer' | 'a
       )}
 
       {area === 'organizer' && manageable && (
-        <EventTeamCard event={event} onHostChanged={() => setReloadKey((k) => k + 1)} />
+        <>
+          <EventTeamCard event={event} onHostChanged={() => setReloadKey((k) => k + 1)} />
+          <TicketTypesCard event={event} />
+        </>
       )}
 
       <EventDetailView event={event} aside={hasActions ? actions : undefined} />
