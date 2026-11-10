@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.web.ApiException;
 import com.openevent.ticket.reservations.dto.ReservationRequest;
 import com.openevent.ticket.reservations.dto.ReservationResponse;
@@ -84,6 +85,26 @@ public class ReservationService {
             throw new ApiException(HttpStatus.NOT_FOUND, "RESERVATION_NOT_FOUND", "Không có vé đang giữ cho đơn này");
         }
         return toResponse(orderId, found);
+    }
+
+    /**
+     * BR-02, phòng khi mất OrderCancelled hoặc Order timeout sau khi Ticket đã giữ vé. Chỉ nhả sau hạn giữ cộng
+     * {@code grace}, để Order (hết hạn đúng 10 phút) luôn xử lý trước.
+     */
+    @Transactional
+    public int releaseExpired(Instant cutoff) {
+        List<Reservation> expired = reservations.lockExpired(cutoff);
+        expired.forEach(this::release);
+        return expired.size();
+    }
+
+    private void release(Reservation reservation) {
+        if (types.release(reservation.getTicketTypeId(), reservation.getQuantity()) == 0) {
+            log.error("Nhả {} vé loại {} nhưng số đang giữ nhỏ hơn", reservation.getQuantity(),
+                    reservation.getTicketTypeId());
+        }
+        reservation.release();
+        reservations.save(reservation);
     }
 
     private ReservationResponse toResponse(UUID orderId, List<Reservation> found) {

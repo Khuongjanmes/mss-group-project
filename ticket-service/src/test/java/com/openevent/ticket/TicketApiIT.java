@@ -14,10 +14,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.openevent.ticket.reservations.ReservationService;
 
 import tools.jackson.databind.JsonNode;
 
 class TicketApiIT extends TicketIntegrationTest {
+
+    @Autowired
+    ReservationService reservations;
 
     @Test
     void onlyEventManagersChangeTicketTypes() {
@@ -84,6 +90,12 @@ class TicketApiIT extends TicketIntegrationTest {
         assertThat(type(standard).path("totalQuantity").asInt()).isEqualTo(5);
         assertThat(type(standard).path("name").asString()).isEqualTo("Thường");
         assertThat(send("DELETE", "/api/ticket-types/" + vip, null, host).code()).isEqualTo("TICKET_TYPE_IN_USE");
+
+        // Hết hạn: job nhả vé (BR-02).
+        jdbc.update("update reservations set expires_at = now() - interval '1 hour' where order_id = ?", first);
+        assertThat(reservations.releaseExpired(Instant.now())).isGreaterThanOrEqualTo(2);
+        assertThat(type(standard).path("available").asInt()).isEqualTo(5);
+        assertThat(type(vip).path("available").asInt()).isEqualTo(2);
     }
 
     @Test
