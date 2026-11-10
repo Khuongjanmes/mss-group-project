@@ -24,7 +24,7 @@ type EventTeamCardProps = {
 /** Người phụ trách (HOST) và nhân sự hỗ trợ (STAFF) của sự kiện; chỉ người quản lý sự kiện thấy. */
 export function EventTeamCard({ event, onHostChanged }: EventTeamCardProps) {
   return (
-    <Card className="gap-0 rounded-xl py-0 shadow-sm">
+    <Card id="team" className="scroll-mt-20 gap-0 rounded-xl py-0 shadow-sm">
       <CardContent className="grid gap-8 p-5 md:grid-cols-2">
         <HostSection event={event} onHostChanged={onHostChanged} />
         <StaffSection eventId={event.id} />

@@ -1,6 +1,7 @@
 import type { BadgeVariant } from '@/components/ui/badge'
 
 import { api } from './client'
+import type { PageResponse } from './types'
 
 export interface TicketType {
   id: string
@@ -42,6 +43,27 @@ export interface Ticket {
   eventEndTime: string | null
 }
 
+export interface Attendee {
+  ticketId: string
+  code: string
+  status: TicketStatus
+  checkedInAt: string | null
+  ticketTypeName: string | null
+  ownerId: string
+  ownerName: string | null
+  ownerEmail: string | null
+}
+
+export interface TicketTypeStats {
+  id: string
+  name: string
+  price: number
+  totalQuantity: number
+  soldQuantity: number
+  reservedQuantity: number
+  checkedIn: number
+}
+
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
   ISSUED: 'Chưa check-in',
   CHECKED_IN: 'Đã check-in',
@@ -79,6 +101,19 @@ export async function deleteTicketType(id: string): Promise<void> {
   await api.delete(`/api/ticket-types/${id}`)
 }
 
+export async function ticketStats(eventId: string): Promise<TicketTypeStats[]> {
+  return (await api.get<TicketTypeStats[]>('/api/tickets/stats', { params: { eventId } })).data
+}
+
+export async function listAttendees(eventId: string, page = 0, size = 50) {
+  return (await api.get<PageResponse<Attendee>>('/api/tickets', { params: { eventId, page, size } })).data
+}
+
 export async function myTickets(): Promise<Ticket[]> {
   return (await api.get<Ticket[]>('/api/tickets/my')).data
+}
+
+/** Người quản lý sự kiện hoặc STAFF. */
+export async function checkInTicket(code: string): Promise<Ticket> {
+  return (await api.post<Ticket>('/api/tickets/check-in', { code })).data
 }

@@ -2,6 +2,7 @@ package com.openevent.ticket.tickettypes;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -12,8 +13,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.openevent.common.web.ApiException;
 import com.openevent.ticket.client.EventClient.EventSummary;
 import com.openevent.ticket.client.EventDirectory;
+import com.openevent.ticket.tickets.TicketRepository;
 import com.openevent.ticket.tickettypes.dto.TicketTypeRequest;
 import com.openevent.ticket.tickettypes.dto.TicketTypeResponse;
+import com.openevent.ticket.tickettypes.dto.TicketTypeStats;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +28,7 @@ public class TicketTypeService {
     private static final List<String> CLOSED = List.of("CANCELLED", "COMPLETED");
 
     private final TicketTypeRepository types;
+    private final TicketRepository tickets;
     private final EventDirectory events;
     private final TransactionTemplate tx;
 
@@ -79,6 +83,18 @@ public class TicketTypeService {
             throw new ApiException(HttpStatus.CONFLICT, "TICKET_TYPE_IN_USE",
                     "Loại vé đã có người giữ hoặc mua, không xóa được; hãy giảm số lượng hoặc đóng mở bán");
         }
+    }
+
+    public List<TicketTypeStats> stats(UUID callerId, UUID eventId) {
+        events.requireManage(eventId, callerId);
+        return tx.execute(status -> {
+            Map<UUID, Long> checkedIn = tickets.countCheckedInByType(eventId);
+            return types.findAllByEventIdOrderByPriceAscNameAsc(eventId).stream()
+                    .map(type -> new TicketTypeStats(type.getId(), type.getName(), type.getPrice(),
+                            type.getTotalQuantity(), type.getSoldQuantity(), type.getReservedQuantity(),
+                            checkedIn.getOrDefault(type.getId(), 0L)))
+                    .toList();
+        });
     }
 
     /** BR-07: mở bán kết thúc trước khi sự kiện bắt đầu; sự kiện đã hủy hay kết thúc thì không đổi vé. */

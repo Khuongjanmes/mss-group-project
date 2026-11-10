@@ -193,6 +193,65 @@ class TicketApiIT extends TicketIntegrationTest {
     }
 
     @Test
+    void staffChecksInOnceDuringEventDaysAndHostKeepsWorkingWhenEventIsDown() {
+        UUID eventId = event(Duration.ofMinutes(2));
+        Instant saleEnd = Instant.now().plus(Duration.ofMinutes(1));
+        Response created = send("POST", "/api/ticket-types", typeBody(eventId, "Vé cổng", 3, "0", saleEnd), host);
+        String id = created.text("id");
+        UUID orderId = UUID.randomUUID();
+        reserve(orderId, Map.of(id, 3));
+        pay(orderId, eventId, buyer);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> myTickets(buyer).size() == 3);
+        List<String> codes = myTickets(buyer).valueStream().map(ticket -> ticket.path("code").asString()).toList();
+
+        Caller staff = stranger;
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff).code())
+                .isEqualTo("NOT_EVENT_MANAGER");
+        fakeEvents.get(eventId).staff().add(staff.id());
+        Response checkedIn = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff);
+        assertThat(checkedIn.text("status")).isEqualTo("CHECKED_IN");
+        Response again = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff);
+        assertThat(again.code()).isEqualTo("ALREADY_CHECKED_IN");
+        assertThat(again.text("message")).matches("Vé đã check-in lúc \\d{2}:\\d{2} \\d{2}/\\d{2}/\\d{4}");
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", "khong-co"), staff).code())
+                .isEqualTo("TICKET_NOT_FOUND");
+
+        // Event lỗi: bản cache chỉ có HOST (KB-3 bước 3).
+        eventDown = true;
+        try {
+            assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(1)), staff).code())
+                    .isEqualTo("EVENT_UNAVAILABLE");
+            assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(1)), host).text("status"))
+                    .isEqualTo("CHECKED_IN");
+        } finally {
+            eventDown = false;
+        }
+
+        JsonNode stats = send("GET", "/api/tickets/stats?eventId=" + eventId, null, host).body();
+        assertThat(stats.get(0).path("soldQuantity").asInt()).isEqualTo(3);
+        assertThat(stats.get(0).path("checkedIn").asInt()).isEqualTo(2);
+        assertThat(send("GET", "/api/tickets/stats?eventId=" + eventId, null, buyer).status()).isEqualTo(403);
+
+        JsonNode attendees = send("GET", "/api/tickets?eventId=" + eventId, null, host).body().path("content");
+        assertThat(attendees).hasSize(3);
+        assertThat(attendees.get(0).path("ownerEmail").asString()).isEqualTo(buyer.id() + "@test.local");
+        assertThat(send("GET", "/api/tickets?eventId=" + eventId, null, staff).status()).isEqualTo(403);
+    }
+
+    @Test
+    void checkInOutsideEventDaysIsRejected() {
+        UUID eventId = event(Duration.ofDays(3));
+        String id = createType(eventId, "Thường", 1, "0");
+        UUID orderId = UUID.randomUUID();
+        reserve(orderId, Map.of(id, 1));
+        pay(orderId, eventId, buyer);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> ticketOfType(id) != null);
+
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", ticketOfType(id)), host).code())
+                .isEqualTo("OUTSIDE_EVENT_DAYS");
+    }
+
+    @Test
     void cancelledEventCancelsTicketsAndNotifiesOwners() {
         String cancelledQueue = probe("tickets-cancelled-probe", Messaging.TICKETS_CANCELLED);
         UUID eventId = event(Duration.ofDays(3));
@@ -210,6 +269,8 @@ class TicketApiIT extends TicketIntegrationTest {
                 .isInstanceOfSatisfying(TicketsCancelled.class, event -> assertThat(event.ownerIds()).containsExactly(buyer.id()));
         assertThat(myTickets(buyer).valueStream().map(ticket -> ticket.path("status").asString()))
                 .containsExactly("CANCELLED");
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", ticketOfType(id)), host).code())
+                .isEqualTo("TICKET_CANCELLED");
         assertThat(type(id).path("reservedQuantity").asInt()).isZero();
     }
 

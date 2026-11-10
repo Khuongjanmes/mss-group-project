@@ -16,6 +16,7 @@ import MockPaymentPage from './pages/MockPaymentPage';
 import MyTicketsPage from './pages/MyTicketsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PaymentResultPage from './pages/PaymentResultPage';
+import CheckInPage from './organizer/CheckInPage';
 import EventFormPage from './organizer/EventFormPage';
 import OrganizerEventsPage from './organizer/OrganizerEventsPage';
 import OrganizerLayout from './organizer/OrganizerLayout';
@@ -95,6 +96,7 @@ export const router = createBrowserRouter([
               { path: ':id', element: <OrganizationDetailPage />, handle: { crumb: 'Chi tiết tổ chức' } },
             ],
           },
+          { path: 'check-in', element: <CheckInPage />, handle: { crumb: 'Check-in' } },
         ],
       },
     ],

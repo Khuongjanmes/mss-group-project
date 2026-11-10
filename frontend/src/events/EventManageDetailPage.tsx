@@ -1,6 +1,6 @@
 import { ArrowLeft, Ban, Check, Edit2, Send, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type EventAction, EventActionDialog } from '@/admin/EventActionDialog';
 import { errorMessage } from '@/api/client';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/datetime';
 import { useMyOrganizations } from '@/organizer/useMyOrganizations';
 import { EventDetailView } from './EventDetailView';
+import { AttendeesCard } from './AttendeesCard';
 import { EventTeamCard } from './EventTeamCard';
 import { TicketTypesCard } from './TicketTypesCard';
 import { isEditable } from './EventRowActions';
@@ -39,6 +40,7 @@ export default function EventManageDetailPage({ area }: { area: 'organizer' | 'a
   const listPath = `/${area}/events`;
   const session = useSession();
   const organizations = useMyOrganizations();
+  const { hash } = useLocation();
 
   useEffect(() => {
     let ignore = false;
@@ -50,6 +52,11 @@ export default function EventManageDetailPage({ area }: { area: 'organizer' | 'a
       ignore = true;
     };
   }, [id, reloadKey]);
+
+  // Menu ⋮ ở danh sách dẫn tới #ticket-types, #team, #attendees: cuộn tới khi thẻ đã hiện.
+  useEffect(() => {
+    if (event && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' });
+  }, [event, hash]);
 
   if (error) {
     return <ErrorState title="Không thể tải sự kiện" description={error} onRetry={() => setReloadKey((k) => k + 1)} />;
@@ -125,6 +132,7 @@ export default function EventManageDetailPage({ area }: { area: 'organizer' | 'a
         <>
           <EventTeamCard event={event} onHostChanged={() => setReloadKey((k) => k + 1)} />
           <TicketTypesCard event={event} />
+          {event.status !== 'DRAFT' && <AttendeesCard eventId={event.id} />}
         </>
       )}
 
