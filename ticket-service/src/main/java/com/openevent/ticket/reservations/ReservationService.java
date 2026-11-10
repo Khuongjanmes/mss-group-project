@@ -111,6 +111,12 @@ public class ReservationService {
         return expired.size();
     }
 
+    /** KB-5: sự kiện bị hủy thì nhả luôn vé đang giữ của các đơn chưa thanh toán. */
+    @Transactional
+    public void releaseEvent(UUID eventId) {
+        reservations.lockHeldOfEvent(eventId).forEach(this::release);
+    }
+
     private void release(Reservation reservation) {
         if (types.release(reservation.getTicketTypeId(), reservation.getQuantity()) == 0) {
             log.error("Nhả {} vé loại {} nhưng số đang giữ nhỏ hơn", reservation.getQuantity(),

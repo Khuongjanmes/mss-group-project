@@ -18,9 +18,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.openevent.common.messaging.Messaging;
+import com.openevent.common.messaging.events.EventCancelled;
 import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.messaging.events.OrderPaid;
 import com.openevent.common.messaging.events.TicketIssued;
+import com.openevent.common.messaging.events.TicketsCancelled;
 import com.openevent.ticket.reservations.ReservationService;
 
 import tools.jackson.databind.JsonNode;
@@ -190,4 +192,29 @@ class TicketApiIT extends TicketIntegrationTest {
 
     }
 
+    @Test
+    void cancelledEventCancelsTicketsAndNotifiesOwners() {
+        String cancelledQueue = probe("tickets-cancelled-probe", Messaging.TICKETS_CANCELLED);
+        UUID eventId = event(Duration.ofDays(3));
+        String id = createType(eventId, "Thường", 5, "100000");
+        UUID paid = UUID.randomUUID();
+        reserve(paid, Map.of(id, 1));
+        pay(paid, eventId, buyer);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> ticketOfType(id) != null);
+        reserve(UUID.randomUUID(), Map.of(id, 2));
+
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.EVENT_CANCELLED,
+                new EventCancelled(UUID.randomUUID(), Instant.now(), eventId));
+
+        assertThat(rabbit.receiveAndConvert(cancelledQueue, Duration.ofSeconds(15).toMillis()))
+                .isInstanceOfSatisfying(TicketsCancelled.class, event -> assertThat(event.ownerIds()).containsExactly(buyer.id()));
+        assertThat(myTickets(buyer).valueStream().map(ticket -> ticket.path("status").asString()))
+                .containsExactly("CANCELLED");
+        assertThat(type(id).path("reservedQuantity").asInt()).isZero();
+    }
+
+    private String ticketOfType(String typeId) {
+        return myTickets(buyer).valueStream().filter(ticket -> ticket.path("ticketTypeId").asString().equals(typeId))
+                .map(ticket -> ticket.path("code").asString()).findFirst().orElse(null);
+    }
 }
