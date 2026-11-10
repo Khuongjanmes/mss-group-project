@@ -10,6 +10,8 @@ import {
   deleteTicketType,
   listTicketTypes,
   type TicketType,
+  type TicketTypeStats,
+  ticketStats,
   updateTicketType,
 } from '@/api/tickets';
 import { ConfirmDeleteDialog } from '@/admin/ConfirmDeleteDialog';
@@ -29,9 +31,10 @@ import { formatDateTime, fromLocalInput, toLocalInput } from '@/lib/datetime';
 
 const TITLE = 'flex items-center gap-2 text-[11px] font-bold tracking-wider text-foreground uppercase';
 
-/** Organizer #4: loại vé của sự kiện kèm số đã bán, đang giữ. Sự kiện đã hủy hay kết thúc thì chỉ xem. */
+/** Organizer #4: loại vé của sự kiện kèm số đã bán, đang giữ, đã check-in. Sự kiện đã hủy hay kết thúc thì chỉ xem. */
 export function TicketTypesCard({ event }: { event: EventItem }) {
   const [types, setTypes] = useState<TicketType[] | null>(null);
+  const [stats, setStats] = useState<Record<string, TicketTypeStats>>({});
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [editing, setEditing] = useState<TicketType | 'new' | null>(null);
@@ -41,8 +44,12 @@ export function TicketTypesCard({ event }: { event: EventItem }) {
   useEffect(() => {
     let ignore = false;
     setError(null);
-    listTicketTypes(event.id)
-      .then((list) => !ignore && setTypes(list))
+    Promise.all([listTicketTypes(event.id), ticketStats(event.id)])
+      .then(([list, counts]) => {
+        if (ignore) return;
+        setTypes(list);
+        setStats(Object.fromEntries(counts.map((row) => [row.id, row])));
+      })
       .catch((err: unknown) => !ignore && setError(errorMessage(err)));
     return () => {
       ignore = true;
@@ -80,6 +87,7 @@ export function TicketTypesCard({ event }: { event: EventItem }) {
         ) : (
           <ul className="divide-y rounded-lg border">
             {types.map((type) => {
+              const counts = stats[type.id];
               return (
                 <li key={type.id} className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 text-sm">
                   <div className="min-w-40 flex-1">
@@ -92,6 +100,7 @@ export function TicketTypesCard({ event }: { event: EventItem }) {
                   <p className="text-muted-foreground tabular-nums">
                     Đã bán <strong className="text-foreground">{type.soldQuantity}</strong>/{type.totalQuantity}
                     {type.reservedQuantity > 0 && ` · đang giữ ${type.reservedQuantity}`}
+                    {counts && ` · check-in ${counts.checkedIn}`}
                   </p>
                   {!closed && (
                     <div className="flex gap-1">

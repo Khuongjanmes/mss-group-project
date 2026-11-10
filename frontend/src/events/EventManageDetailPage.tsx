@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/datetime';
 import { useMyOrganizations } from '@/organizer/useMyOrganizations';
 import { EventDetailView } from './EventDetailView';
+import { AttendeesCard } from './AttendeesCard';
 import { EventTeamCard } from './EventTeamCard';
 import { TicketTypesCard } from './TicketTypesCard';
 import { isEditable } from './EventRowActions';
@@ -125,6 +126,7 @@ export default function EventManageDetailPage({ area }: { area: 'organizer' | 'a
         <>
           <EventTeamCard event={event} onHostChanged={() => setReloadKey((k) => k + 1)} />
           <TicketTypesCard event={event} />
+          {event.status !== 'DRAFT' && <AttendeesCard eventId={event.id} />}
         </>
       )}
 
