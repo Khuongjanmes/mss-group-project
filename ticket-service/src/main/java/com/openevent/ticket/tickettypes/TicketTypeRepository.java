@@ -27,6 +27,20 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, UUID> {
             WHERE id = :id AND reserved_quantity >= :q""", nativeQuery = true)
     int release(@Param("id") UUID id, @Param("q") int quantity);
 
+    /** Đã thanh toán: chuyển từ đang giữ sang đã bán. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE ticket_types SET reserved_quantity = reserved_quantity - :q, sold_quantity = sold_quantity + :q
+            WHERE id = :id AND reserved_quantity >= :q""", nativeQuery = true)
+    int confirm(@Param("id") UUID id, @Param("q") int quantity);
+
+    /** Bán thẳng khi phần giữ đã bị nhả (thanh toán đến sát giờ hết hạn); vẫn không vượt tổng. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE ticket_types SET sold_quantity = sold_quantity + :q
+            WHERE id = :id AND total_quantity - sold_quantity - reserved_quantity >= :q""", nativeQuery = true)
+    int sell(@Param("id") UUID id, @Param("q") int quantity);
+
     /** BR-06: không giảm tổng xuống dưới số đã bán cộng đang giữ. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = """

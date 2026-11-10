@@ -31,9 +31,14 @@ export default function Layout() {
                 </Button>
               )}
               {!hasRole(session, 'ADMIN') && (
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/organizer">Quản lý sự kiện</Link>
-                </Button>
+                <>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to="/tickets">Vé của tôi</Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to="/organizer">Quản lý sự kiện</Link>
+                  </Button>
+                </>
               )}
               <span className="hidden text-sm text-muted-foreground sm:inline">{session.user.fullName}</span>
               <Button variant="outline" size="sm" onClick={() => void signOut()}>

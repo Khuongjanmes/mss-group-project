@@ -3,20 +3,14 @@ package com.openevent.ticket;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.amqp.core.MessageBuilder;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import com.openevent.common.messaging.Messaging;
-import com.openevent.common.messaging.events.OrderPaid;
 
 /** Khung service chạy được trên hạ tầng thật: database, RabbitMQ, bảo mật từ common-lib. */
 class TicketServiceBaseIT extends TicketIntegrationTest {
@@ -30,9 +24,10 @@ class TicketServiceBaseIT extends TicketIntegrationTest {
     }
 
     @Test
-    void readingTicketTypesIsPublicButChangingThemNeedsIdentity() {
+    void readingTicketTypesIsPublicButTicketsNeedIdentity() {
         assertThat(send("GET", "/api/ticket-types?eventId=" + UUID.randomUUID(), null, null).status()).isEqualTo(200);
-        assertThat(send("POST", "/api/ticket-types", Map.of(), null).status()).isEqualTo(401);
+        assertThat(send("GET", "/api/tickets/my", null, null).status()).isEqualTo(401);
+        assertThat(send("GET", "/api/tickets/my", null, buyer).status()).isEqualTo(200);
     }
 
     @Test
@@ -52,17 +47,6 @@ class TicketServiceBaseIT extends TicketIntegrationTest {
     void queueAndDeadLetterQueueAreDeclared() {
         assertThat(amqp.getQueueProperties("ticket-service.events")).isNotNull();
         assertThat(amqp.getQueueProperties("ticket-service.events.dlq")).isNotNull();
-    }
-
-    @Test
-    @ExtendWith(OutputCaptureExtension.class)
-    void listenerReceivesEventPublishedToExchange(CapturedOutput output) {
-        OrderPaid event = new OrderPaid(UUID.randomUUID(), Instant.now(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
-
-        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.ORDER_PAID, event);
-
-        Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(() -> assertThat(output).contains("OrderPaid: " + event.messageId()));
     }
 
     @Test

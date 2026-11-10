@@ -25,4 +25,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
             ORDER BY expires_at LIMIT 200 FOR UPDATE SKIP LOCKED""", nativeQuery = true)
     List<Reservation> lockExpired(@Param("cutoff") Instant cutoff);
 
+    @Query(value = """
+            SELECT r.* FROM reservations r JOIN ticket_types t ON t.id = r.ticket_type_id
+            WHERE t.event_id = :eventId AND r.status = 'HELD' FOR UPDATE OF r""", nativeQuery = true)
+    List<Reservation> lockHeldOfEvent(@Param("eventId") UUID eventId);
 }

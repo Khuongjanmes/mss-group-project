@@ -1,3 +1,5 @@
+import type { BadgeVariant } from '@/components/ui/badge'
+
 import { api } from './client'
 
 export interface TicketType {
@@ -23,6 +25,35 @@ export interface TicketTypeRequest {
   saleEnd: string
 }
 
+export type TicketStatus = 'ISSUED' | 'CHECKED_IN' | 'CANCELLED'
+
+export interface Ticket {
+  id: string
+  code: string
+  status: TicketStatus
+  issuedAt: string
+  checkedInAt: string | null
+  orderId: string
+  ownerId: string
+  ticketTypeId: string
+  ticketTypeName: string | null
+  eventId: string | null
+  eventStartTime: string | null
+  eventEndTime: string | null
+}
+
+export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
+  ISSUED: 'Chưa check-in',
+  CHECKED_IN: 'Đã check-in',
+  CANCELLED: 'Đã hủy',
+}
+
+export const TICKET_STATUS_BADGE: Record<TicketStatus, BadgeVariant> = {
+  ISSUED: 'success',
+  CHECKED_IN: 'info',
+  CANCELLED: 'destructive',
+}
+
 /** Trạng thái bán của một loại vé tại thời điểm `now`. */
 export function saleState(type: TicketType, now = Date.now()): 'upcoming' | 'ended' | 'soldOut' | 'onSale' {
   if (now < Date.parse(type.saleStart)) return 'upcoming'
@@ -46,4 +77,8 @@ export async function updateTicketType(id: string, body: TicketTypeRequest): Pro
 
 export async function deleteTicketType(id: string): Promise<void> {
   await api.delete(`/api/ticket-types/${id}`)
+}
+
+export async function myTickets(): Promise<Ticket[]> {
+  return (await api.get<Ticket[]>('/api/tickets/my')).data
 }
