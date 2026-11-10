@@ -226,6 +226,15 @@ class TicketApiIT extends TicketIntegrationTest {
             eventDown = false;
         }
 
+        JsonNode stats = send("GET", "/api/tickets/stats?eventId=" + eventId, null, host).body();
+        assertThat(stats.get(0).path("soldQuantity").asInt()).isEqualTo(3);
+        assertThat(stats.get(0).path("checkedIn").asInt()).isEqualTo(2);
+        assertThat(send("GET", "/api/tickets/stats?eventId=" + eventId, null, buyer).status()).isEqualTo(403);
+
+        JsonNode attendees = send("GET", "/api/tickets?eventId=" + eventId, null, host).body().path("content");
+        assertThat(attendees).hasSize(3);
+        assertThat(attendees.get(0).path("ownerEmail").asString()).isEqualTo(buyer.id() + "@test.local");
+        assertThat(send("GET", "/api/tickets?eventId=" + eventId, null, staff).status()).isEqualTo(403);
     }
 
     @Test
