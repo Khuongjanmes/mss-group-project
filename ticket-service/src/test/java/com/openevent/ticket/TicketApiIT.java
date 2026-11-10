@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.openevent.common.messaging.Messaging;
 import com.openevent.common.messaging.events.OrderCancelled;
+import com.openevent.common.messaging.events.OrderPaid;
+import com.openevent.common.messaging.events.TicketIssued;
 import com.openevent.ticket.reservations.ReservationService;
 
 import tools.jackson.databind.JsonNode;
@@ -27,6 +29,15 @@ class TicketApiIT extends TicketIntegrationTest {
 
     @Autowired
     ReservationService reservations;
+
+    private void pay(UUID orderId, UUID eventId, Caller owner) {
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.ORDER_PAID,
+                new OrderPaid(UUID.randomUUID(), Instant.now(), orderId, owner.id(), eventId));
+    }
+
+    private JsonNode myTickets(Caller caller) {
+        return send("GET", "/api/tickets/my", null, caller).body();
+    }
 
     @Test
     void onlyEventManagersChangeTicketTypes() {
@@ -151,6 +162,32 @@ class TicketApiIT extends TicketIntegrationTest {
         Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
                 assertThat(type(id).path("available").asInt()).isEqualTo(3));
         assertThat(type(id).path("reservedQuantity").asInt()).isZero();
+    }
+
+    @Test
+    void paidOrderGetsTicketsOnce() {
+        String issuedQueue = probe("ticket-issued-probe", Messaging.TICKET_ISSUED);
+        UUID eventId = event(Duration.ofDays(3));
+        String id = createType(eventId, "Thường", 5, "100000");
+        UUID paid = UUID.randomUUID();
+        reserve(paid, Map.of(id, 2));
+
+        OrderPaid message = new OrderPaid(UUID.randomUUID(), Instant.now(), paid, buyer.id(), eventId);
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.ORDER_PAID, message);
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.ORDER_PAID, message);
+        pay(paid, eventId, buyer);
+
+        Object issued = rabbit.receiveAndConvert(issuedQueue, Duration.ofSeconds(15).toMillis());
+        assertThat(issued).isInstanceOfSatisfying(TicketIssued.class, event -> {
+            assertThat(event.ownerId()).isEqualTo(buyer.id());
+            assertThat(event.ticketCodes()).hasSize(2);
+        });
+        assertThat(rabbit.receiveAndConvert(issuedQueue, 2000)).isNull();
+        assertThat(myTickets(buyer)).hasSize(2);
+        assertThat(myTickets(buyer).get(0).path("ticketTypeName").asString()).isEqualTo("Thường");
+        assertThat(type(id).path("soldQuantity").asInt()).isEqualTo(2);
+        assertThat(type(id).path("reservedQuantity").asInt()).isZero();
+
     }
 
 }

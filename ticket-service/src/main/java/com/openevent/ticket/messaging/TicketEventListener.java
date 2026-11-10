@@ -10,6 +10,7 @@ import com.openevent.common.messaging.events.EventCancelled;
 import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.messaging.events.OrderPaid;
 import com.openevent.ticket.reservations.ReservationService;
+import com.openevent.ticket.tickets.TicketService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,12 +22,12 @@ public class TicketEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(TicketEventListener.class);
 
+    private final TicketService tickets;
     private final ReservationService reservations;
 
     @RabbitHandler
     public void on(OrderPaid event) {
-        // TODO: phát hành vé khi đơn đã thanh toán (KB-4).
-        log.info("Nhận OrderPaid: {}", event.messageId());
+        tickets.issue(event);
     }
 
     @RabbitHandler
