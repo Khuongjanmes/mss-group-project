@@ -4,16 +4,16 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 
 ## Cấu trúc và phân công
 
-| Thư mục | Cổng | Database | Phụ trách | Trạng thái |
+| Thư mục | Cổng | Database | Phụ trách (TV, tài khoản GitHub) | Trạng thái |
 | --- | --- | --- | --- | --- |
-| [eureka-server/](eureka-server/) | 8761 | — | TV1 | Hoàn thành |
-| [api-gateway/](api-gateway/) | 8080 | — | TV1 | Hoàn thành |
-| [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 | Hoàn thành |
-| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 | Khung |
-| [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 | Khung |
-| [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 | Khung |
-| [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 | Khung |
-| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 | Khung |
+| [eureka-server/](eureka-server/) | 8761 | — | TV1 @YuiGuende | Hoàn thành |
+| [api-gateway/](api-gateway/) | 8080 | — | TV1 @YuiGuende | Hoàn thành |
+| [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 @YuiGuende | Hoàn thành |
+| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Khung |
+| [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Khung |
+| [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Khung |
+| [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Khung |
+| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Khung |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
 
 Một service "khung" đã có: schema Flyway theo requirement, kết nối database và RabbitMQ, đăng ký Eureka, bảo mật từ `common-lib`, Swagger, queue và listener rỗng, Feign client, test tích hợp. Phần còn lại là entity, nghiệp vụ và API thật. Tìm `TODO` trong service của bạn để bắt đầu.
@@ -91,9 +91,7 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 
 ## Quy trình làm việc trên GitHub
 
-Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review → merge**. Không push thẳng `main` hay `develop`.
-
-Hướng dẫn từng bước kèm lệnh và checklist: [CONTRIBUTING.md](CONTRIBUTING.md).
+Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review → merge**. Không push thẳng `main` hay `develop`. Hướng dẫn từng bước, lệnh, checklist, release và cấu hình repo: [CONTRIBUTING.md](CONTRIBUTING.md). Người phụ trách từng service: bảng [Cấu trúc và phân công](#cấu-trúc-và-phân-công).
 
 1. **Issue trước khi code.** Tạo bằng mẫu *Chức năng* hoặc *Lỗi*, có tiêu chí chấp nhận, người nhận (Assignees), label (`type:`, `module:`, `priority:`), milestone theo checkpoint (`CP1`–`CP4`) và gắn vào Project board.
 2. **Nhánh** tạo từ `develop`, tên `feature/<số issue>-<service>-<tính năng>`, ví dụ `feature/8-ticket-check-in`. Việc cấu hình dùng `chore/`, sửa lỗi dùng `fix/`.
@@ -104,14 +102,7 @@ Hướng dẫn từng bước kèm lệnh và checklist: [CONTRIBUTING.md](CONTR
    Dùng email trùng với tài khoản GitHub để commit được tính cho đúng người.
 4. **Pull request** vào `develop` theo mẫu: dòng đầu `Closes #<số issue>`, mục *Cách kiểm thử* ghi lệnh đã chạy. CODEOWNERS tự mời người phụ trách service review.
 5. **Review:** ít nhất một người **khác người viết** approve. Bị yêu cầu sửa thì thêm commit mới, không force-push sau khi đã có review.
-6. **Merge** khi đã được approve và test qua; xóa nhánh sau khi merge. Issue chuyển sang Done trên board.
-
-| Thành viên | Tài khoản | Phụ trách |
-| --- | --- | --- |
-| TV1 (nhóm trưởng) | @YuiGuende | Identity, Gateway, Eureka, Notification, hạ tầng |
-| TV2 | @duev-dev | Event, Payment |
-| TV3 | @TranQuan1105 | Ticket |
-| TV4 | @Khuongjanmes | Order |
+6. **Merge** bằng *Squash and merge* khi đã được approve và test qua; xóa nhánh sau khi merge. Issue chuyển sang Done trên board.
 
 ## Quy ước khi viết service
 

@@ -13,16 +13,7 @@ Issue ─► nhánh từ develop ─► code + test ─► commit (Refs #n) ─�
 3. Người viết không tự approve, không tự merge khi chưa có approve.
 4. Không commit `.env`, mật khẩu, khóa API, `target/`, `node_modules/`.
 
-**Phân công** (cũng có trong [`.github/CODEOWNERS`](.github/CODEOWNERS)):
-
-| Thành viên | Tài khoản | Phụ trách |
-| --- | --- | --- |
-| TV1 (nhóm trưởng) | @YuiGuende | Identity, Gateway, Eureka, Notification, hạ tầng |
-| TV2 | @duev-dev | Event, Payment |
-| TV3 | @TranQuan1105 | Ticket |
-| TV4 | @Khuongjanmes | Order |
-
-Mỗi người làm service của mình. Cần sửa service của người khác thì nhắn người đó trước và mời họ review.
+**Phân công:** xem bảng [Cấu trúc và phân công](README.md#cấu-trúc-và-phân-công) trong README (nguồn duy nhất; [`.github/CODEOWNERS`](.github/CODEOWNERS) làm theo bảng đó). Mỗi người làm service của mình. Cần sửa service của người khác thì nhắn người đó trước và mời họ review.
 
 ---
 
@@ -122,13 +113,24 @@ Ghi lại lệnh đã chạy và kết quả (ví dụ `TicketApiIT 8/8`) để 
 
 ## Bước 6. Cập nhật theo `develop` rồi push
 
+**PR chưa có ai review:** rebase cho lịch sử gọn.
+
 ```bash
 git fetch origin
-git rebase origin/develop             # chỉ rebase khi PR CHƯA có ai review
-git push -u origin feature/21-ticket-check-in
+git rebase origin/develop
+git push -u origin feature/21-ticket-check-in        # lần push đầu
+git push --force-with-lease                          # nhánh đã push trước đó: rebase đổi commit nên push thường bị từ chối
 ```
 
-Có xung đột: sửa file, `git add <file>`, `git rebase --continue`, chạy lại Bước 5.
+**PR đã có review:** không rebase, không force-push (reviewer sẽ mất dấu phần đã xem). Gộp `develop` vào bằng merge:
+
+```bash
+git fetch origin
+git merge origin/develop
+git push
+```
+
+Có xung đột: sửa file, `git add <file>`, rồi `git rebase --continue` (đang rebase) hoặc `git commit` (đang merge); chạy lại Bước 5. Chỉ dùng `--force-with-lease`, không dùng `--force`, và chỉ trên nhánh của chính mình.
 
 ## Bước 7. Mở Pull Request
 
@@ -158,7 +160,7 @@ Kiểm tra cột phải **Development** hiện đúng issue. Trên board, kéo i
 
 Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, test qua, không xung đột.
 
-1. Bấm **Squash and merge** (tiêu đề giữ dạng Conventional Commits) hoặc theo cách nhóm trưởng chốt.
+1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`, tiêu đề giữ dạng Conventional Commits, mô tả lấy từ PR. Merge commit chỉ dùng cho PR release vào `main` và PR back-merge (xem [Release vào main](#release-vào-main)).
 2. Bấm **Delete branch**.
 3. Nếu issue chưa tự đóng (khi nhánh mặc định chưa phải `develop`): đóng tay, comment `Hoàn thành qua PR #<số>`.
 4. Board: issue sang **Done**.
@@ -179,11 +181,73 @@ Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, 
 [ ] 3. Code: DTO + validation, ApiException, phân quyền, migration mới, unit test Mockito, IT
 [ ] 4. Commit: feat(<service>): ... + "Refs #<số>"; không .env / khóa / target / node_modules
 [ ] 5. Test: ./mvnw -pl <service> -am verify; npm run build; ghi kết quả
-[ ] 6. Rebase develop (khi chưa review), push
+[ ] 6. Chưa review: rebase develop + push --force-with-lease · Đã review: merge develop + push
 [ ] 7. PR vào develop: "Closes #<số>", cách kiểm thử, ảnh; reviewer; label/milestone; board → In review
 [ ] 8. Sửa theo review bằng commit mới, resolve comment
-[ ] 9. Approve → merge → xóa nhánh → đóng issue nếu chưa tự đóng → board Done → pull develop
+[ ] 9. Approve → Squash and merge → xóa nhánh → đóng issue nếu chưa tự đóng → board Done → pull develop
 ```
+
+## Cuối mỗi checkpoint: kiểm thử chéo
+
+Trước mỗi CP, một người (xoay vòng, không phải người viết phần đó) chạy hệ thống từ `develop` bằng `docker compose up --build` và đi hết các luồng chính của checkpoint qua Gateway và giao diện. Mỗi lỗi tìm được tạo **một issue bằng mẫu *Lỗi***: gán người phụ trách service, label `type: bug`, milestone của CP đó. Sửa lỗi đi đúng quy trình như một tính năng (nhánh `fix/<số issue>-...`).
+
+| Checkpoint | Người kiểm thử |
+| --- | --- |
+| CP2 | TV3 |
+| CP3 | TV4 |
+| CP4 | TV2 |
+
+## Release vào main
+
+Làm ở checkpoint nộp bài (ít nhất CP4). Nhóm trưởng thực hiện.
+
+1. Tạo nhánh release từ `develop`:
+   ```bash
+   git switch develop && git pull
+   git switch -c release/1.0.0
+   git push -u origin release/1.0.0
+   ```
+2. Mở PR `release/1.0.0` → **`main`**, cần **2 approval**. Trên nhánh này chỉ sửa lỗi nhỏ (commit `fix(...)` + `Refs #<issue lỗi>`).
+3. Merge bằng **Create a merge commit** (không squash, để giữ lịch sử từng PR).
+4. Gắn tag và tạo GitHub Release:
+   ```bash
+   git switch main && git pull
+   git tag -a v1.0.0 -m "OpenEvent v1.0.0 (CP4)"
+   git push origin v1.0.0
+   ```
+   GitHub → **Releases → Draft a new release** → chọn tag `v1.0.0` → *Generate release notes* → **Publish release**.
+5. Back-merge: mở PR `main` → `develop`, merge bằng **Create a merge commit**, để `develop` có các sửa lỗi làm trên nhánh release.
+
+## Checklist trước khi nộp (CP4)
+
+- [ ] *Insights → Contributors* hiện đủ 4 thành viên, commit cân đối; ai thiếu thì kiểm tra lại email git (Bước 0).
+- [ ] `git log --first-parent --oneline develop`: mỗi dòng là một PR đã merge, không có commit push thẳng.
+- [ ] Mọi PR đã đóng đều có ít nhất 1 *Approved* của người khác người viết.
+- [ ] Không còn issue mở trong milestone CP4 (hoặc đã chuyển milestone, có ghi lý do).
+- [ ] `docker compose up` chạy toàn bộ theo README; có Postman collection, dữ liệu mẫu, tài khoản test.
+- [ ] Repo không có `.env`, khóa API, `target/`, `node_modules/`: lệnh `git ls-files | grep -E "(^|/)\.env$|target/|node_modules/"` không ra dòng nào.
+- [ ] Đã có tag và GitHub Release `v1.0.0`.
+
+## Cấu hình repo (nhóm trưởng, quyền admin, làm một lần)
+
+**Settings → General**
+- *Default branch*: `develop`, để `Closes #n` tự đóng issue khi PR merge vào `develop`.
+- *Pull Requests*: bật *Allow squash merging* với *Default commit message* = **Pull request title and description**; bật *Allow merge commits* (cho release và back-merge); **tắt** *Allow rebase merging*; bật *Automatically delete head branches*.
+
+**Settings → Rules → Rulesets** (repo Private dùng GitHub Free không có mục này thì coi bảng dưới là quy ước bắt buộc):
+
+| Ruleset | Nhánh | Cài đặt |
+| --- | --- | --- |
+| `protect-develop` | `develop` | *Restrict deletions* · *Block force pushes* · *Require a pull request before merging*: 1 approval, *Dismiss stale pull request approvals when new commits are pushed*, *Require conversation resolution before merging* |
+| `protect-main` | `main` | Như trên nhưng **2 approval** và *Require review from Code Owners* |
+
+Cả hai ruleset: **Bypass list → Repository admin**. Lý do: khi bật *Require review from Code Owners*, PR mà người mở là code owner duy nhất của thư mục (ví dụ nhóm trưởng mở PR release có sửa `identity-service`) sẽ không ai khác approve được.
+
+**Project board** (*Projects → New project → Board*, rồi tab **Projects** của repo → **Link a project**):
+- Cột: **Backlog → To do → In progress → In review → Done**.
+- **⋯ → Workflows**, bật: *Item added to project* → Backlog · *Item closed* → Done · *Pull request merged* → Done.
+- *Manage access*: thêm 3 thành viên quyền **Write**.
+
 
 ## Dùng AI
 
