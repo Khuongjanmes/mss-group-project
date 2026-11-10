@@ -142,6 +142,15 @@ cd frontend && npm run build          # nếu có sửa frontend
 
 Ghi lại lệnh đã chạy và kết quả (ví dụ `TicketApiIT 8/8`) để dán vào PR.
 
+**CI trên GitHub Actions** chạy lại các bước này cho mọi PR và mỗi lần push vào `develop`/`main`:
+
+| Workflow | Chạy khi | Làm gì |
+| --- | --- | --- |
+| *Backend CI* (`.github/workflows/backend-ci.yml`) | Sửa code Java hoặc `pom.xml` | Mỗi service bị sửa một job chạy song song: `./mvnw -pl <service> -am verify` (gồm `*IT` với Testcontainers). Sửa `common-lib`, `pom.xml` gốc hoặc workflow thì test **tất cả** service |
+| *Frontend CI* (`.github/workflows/frontend-ci.yml`) | Sửa `frontend/**` | `npm ci` → `npm run build` (tsc + vite), Node theo `frontend/.nvmrc` |
+
+Kết quả hiện ở cuối trang PR. Job đỏ: bấm **Details** xem log; test lỗi thì tải artifact `test-reports-<service>` để xem báo cáo. Vẫn tự chạy test trên máy trước khi push: CI để bắt lỗi sót, không thay bước này. Muốn chạy lại thủ công: tab **Actions** → chọn workflow → **Run workflow**.
+
 ## Bước 6. Cập nhật theo `develop` rồi push
 
 **PR chưa có ai review:** rebase cho lịch sử gọn.
@@ -186,7 +195,7 @@ Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open re
 
 1. **Tab *Conversation*:** base là `develop`; tiêu đề đúng quy ước commit (Bước 4); mô tả có `Closes #<số>` và *Cách kiểm thử*; cột phải **Development** hiện đúng issue; label, milestone giống issue. Sai thì comment yêu cầu sửa.
 2. **Tab *Commits*:** mỗi commit một thay đổi, đúng quy ước, có `Refs: #<số>`.
-3. **Tab *Files changed*:** đọc hết từng file, không chỉ lướt; đọc xong tick **Viewed**. Đối chiếu tiêu chí chấp nhận của issue và quy tắc BR-xx; có test; không có `.env`, khóa API, file build.
+3. **Tab *Files changed*:** đọc hết từng file, không chỉ lướt; đọc xong tick **Viewed**. Đối chiếu tiêu chí chấp nhận của issue và quy tắc BR-xx; có test; không có `.env`, khóa API, file build. Cuối trang PR: các check **CI xanh**; đỏ thì góp ý `blocker:`, không approve.
 4. **Chạy thử** với luồng quan trọng (API, nghiệp vụ, Saga):
    ```bash
    gh pr checkout <số PR>               # hoặc: git fetch origin && git switch <nhánh>
@@ -218,7 +227,7 @@ Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open re
 
 ## Bước 9. Merge
 
-**Người viết (tác giả PR) merge**, reviewer không merge. Chỉ merge khi: đã có **ít nhất 1 approve**, mọi góp ý đã được reviewer resolve, test qua, không xung đột, PR không còn là draft.
+**Người viết (tác giả PR) merge**, reviewer không merge. Chỉ merge khi: đã có **ít nhất 1 approve**, mọi góp ý đã được reviewer resolve, test qua và **CI xanh**, không xung đột, PR không còn là draft.
 
 1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`. Trước khi bấm **Confirm squash and merge**, kiểm tra:
    - Tiêu đề: `<type>(<scope>): <subject> (#<số PR>)`, tiếng Anh theo Bước 4, ví dụ `feat(ticket): check in tickets by code (#21)`.
@@ -306,6 +315,8 @@ Làm ở checkpoint nộp bài (ít nhất CP4). Nhóm trưởng thực hiện.
 | --- | --- | --- |
 | `protect-develop` | `develop` | *Restrict deletions* · *Block force pushes* · *Require a pull request before merging*: 1 approval, *Dismiss stale pull request approvals when new commits are pushed*, *Require conversation resolution before merging* |
 | `protect-main` | `main` | Như trên nhưng **2 approval** và *Require review from Code Owners* |
+
+**Không** bật *Require status checks to pass*: workflow CI chỉ chạy khi thư mục liên quan thay đổi (`paths:`), nên PR chỉ sửa tài liệu sẽ bị treo chờ một check không bao giờ chạy. Thay vào đó, reviewer không approve và tác giả không merge khi CI đỏ (Bước 8, Bước 9).
 
 Cả hai ruleset: **Bypass list → Repository admin**. Lý do: khi bật *Require review from Code Owners*, PR mà người mở là code owner duy nhất của thư mục (ví dụ nhóm trưởng mở PR release có sửa `identity-service`) sẽ không ai khác approve được.
 
