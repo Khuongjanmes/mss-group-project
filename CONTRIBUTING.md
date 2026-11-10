@@ -60,7 +60,7 @@ git switch -c feature/21-ticket-check-in        # feature/<số issue>-<service>
 | Cấu hình, hạ tầng, quy trình | `chore/` |
 | Tài liệu, báo cáo | `docs/` |
 
-Trên board, kéo issue sang **In progress**.
+Trên board, kéo issue sang **In progress**. Đọc lại **tiêu chí chấp nhận** của issue trước khi code: PR chỉ làm đúng các tiêu chí đó, việc phát sinh thì tạo issue mới.
 
 ## Bước 3. Code và test
 
@@ -143,7 +143,9 @@ GitHub → **Compare & pull request**. Base: **`develop`**.
 | Reviewers | CODEOWNERS tự mời; nếu PR chỉ sửa service của mình, mời thêm một thành viên khác |
 | Assignees, Labels, Milestone | Giống issue |
 
-Kiểm tra cột phải **Development** hiện đúng issue. Trên board, kéo issue sang **In review**.
+Kiểm tra cột phải **Development** hiện đúng issue. Trên board, kéo issue sang **In review**. Nhắn reviewer link PR.
+
+Còn làm dở nhưng muốn có góp ý sớm: chọn mũi tên cạnh nút → **Create draft pull request**. Xong thì bấm **Ready for review**; draft PR không merge được.
 
 ## Bước 8. Review
 
