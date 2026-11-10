@@ -302,7 +302,7 @@ Nếu trễ tiến độ, nhóm cắt theo thứ tự: WebSocket, nhắc lịch 
 
 ### 4.1 Phân công & timeline
 
-TV1–TV4 là Thành viên 1–4 ở trang bìa. Mỗi thành viên làm trên nhánh `feature/<service>-<tính năng>` và merge vào `develop` qua pull request có review.
+TV1–TV4 là Thành viên 1–4 ở trang bìa. Mỗi thành viên làm trên nhánh `feature/<số issue>-<service>-<tính năng>` và merge vào `develop` qua pull request có review (quy trình chi tiết trong README).
 
 | Tuần | Công việc | Người phụ trách | Sản phẩm đầu ra | Checkpoint |
 | --- | --- | --- | --- | --- |
