@@ -1,4 +1,4 @@
-import { Building2, CalendarDays } from 'lucide-react';
+import { Building2, CalendarDays, ScanLine } from 'lucide-react';
 
 import { signOut } from '@/api/auth';
 import { useSession } from '@/auth/session';
@@ -12,6 +12,7 @@ const organizerNav: NavGroup[] = [
     items: [
       { title: 'Sự kiện của tôi', to: '/organizer/events', icon: CalendarDays },
       { title: 'Tổ chức', to: '/organizer/organizations', icon: Building2 },
+      { title: 'Check-in', to: '/organizer/check-in', icon: ScanLine },
     ],
   },
 ];

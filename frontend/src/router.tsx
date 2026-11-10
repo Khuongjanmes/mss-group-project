@@ -13,8 +13,10 @@ import EventsPage from './pages/EventsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import MockPaymentPage from './pages/MockPaymentPage';
+import MyTicketsPage from './pages/MyTicketsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PaymentResultPage from './pages/PaymentResultPage';
+import CheckInPage from './organizer/CheckInPage';
 import EventFormPage from './organizer/EventFormPage';
 import OrganizerEventsPage from './organizer/OrganizerEventsPage';
 import OrganizerLayout from './organizer/OrganizerLayout';
@@ -35,6 +37,7 @@ export const router = createBrowserRouter([
       {
         element: <RequireRole role="USER" />,
         children: [
+          { path: 'tickets', element: <MyTicketsPage /> },
           { path: 'payments/result', element: <PaymentResultPage /> },
           { path: 'payments/:id/mock', element: <MockPaymentPage /> },
         ],
@@ -93,6 +96,7 @@ export const router = createBrowserRouter([
               { path: ':id', element: <OrganizationDetailPage />, handle: { crumb: 'Chi tiết tổ chức' } },
             ],
           },
+          { path: 'check-in', element: <CheckInPage />, handle: { crumb: 'Check-in' } },
         ],
       },
     ],

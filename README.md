@@ -1,5 +1,8 @@
 # OpenEvent
 
+[![Backend CI](https://github.com/YuiGuende/mss-group-project/actions/workflows/backend-ci.yml/badge.svg?branch=develop)](https://github.com/YuiGuende/mss-group-project/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/YuiGuende/mss-group-project/actions/workflows/frontend-ci.yml/badge.svg?branch=develop)](https://github.com/YuiGuende/mss-group-project/actions/workflows/frontend-ci.yml)
+
 Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu và thiết kế nằm trong [requirement.md](requirement.md).
 
 ## Cấu trúc và phân công
@@ -12,7 +15,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Khung |
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
-| [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Khung |
+| [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
 | [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Khung |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
 
@@ -238,3 +241,20 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 - **Webhook payOS:** khai báo `https://<domain công khai>/api/payments/payos-webhook` ở my.payos.vn. Chạy ở máy cá nhân thì payOS không gọi vào được; trang kết quả tự hỏi lại payOS nên vẫn cập nhật được trạng thái.
 - **Message:** phát `PaymentSucceeded` hoặc `PaymentFailed` sau khi commit; nhận `OrderRefundRequested` thì chuyển giao dịch SUCCESS của đơn sang REFUND_PENDING (bỏ qua message trùng theo `messageId`).
 - **Callback trùng (BR-11):** khóa dòng theo `transaction_ref`; mọi callback được ghi vào `payment_logs`, giao dịch đã xử lý thì không đổi nữa.
+
+## API Ticket
+
+| Method | Đường dẫn | Quyền | Mô tả |
+| --- | --- | --- | --- |
+| GET | `/api/ticket-types?eventId`, `/api/ticket-types/{id}` | Công khai | Loại vé kèm `available` (tổng trừ đã bán và đang giữ) |
+| POST | `/api/ticket-types` | Người quản lý sự kiện | `{eventId, name, price, totalQuantity, saleStart, saleEnd}`; mở bán kết thúc trước khi sự kiện bắt đầu (BR-07) |
+| PUT, DELETE | `/api/ticket-types/{id}` | Người quản lý sự kiện | Sự kiện lấy từ loại vé trong DB. Không giảm tổng dưới đã bán cộng đang giữ (BR-06); chỉ xóa loại chưa từng được giữ |
+| GET | `/api/tickets/my` | Đăng nhập | Vé của tôi, mới nhất trước; `code` dùng làm QR |
+| POST | `/api/tickets/check-in` | Người quản lý sự kiện, STAFF | `{"code"}`: mỗi vé một lần, trong những ngày diễn ra (BR-09) |
+| GET | `/api/tickets?eventId`, `/api/tickets/stats?eventId` | Người quản lý sự kiện | Người tham dự (họ tên, email từ Identity); đã bán, đang giữ, đã check-in theo loại vé |
+| POST | `/internal/reservations` | Nội bộ | `{orderId, items:[{ticketTypeId, quantity}]}`: giữ vé 10 phút, tất cả hoặc không; hết vé hoặc chưa mở bán trả 409; gọi lại cùng `orderId` trả phần đã giữ. Trả `unitPrice` để Order tính tiền |
+
+- **Quyền:** Gateway chỉ yêu cầu đăng nhập; Ticket hỏi Event `/internal/events/{id}/access` cho mọi thao tác trên loại vé, thống kê, người tham dự, check-in. Event lỗi thì từ chối (503), riêng check-in dùng bản cache và chỉ HOST check-in được (KB-3).
+- **Chống bán vượt (BR-01):** giữ, nhả, bán đều là một câu `UPDATE` có điều kiện; các cột số lượng `updatable = false` nên JPA không ghi đè. Test `hundredConcurrentOrdersNeverOversell`: 100 đơn cùng lúc vào 10 vé, đúng 10 đơn giữ được.
+- **Message:** nhận `OrderPaid` → phát hành vé, phát `TicketIssued`; `OrderCancelled` → nhả vé; `EventCancelled` → hủy vé chưa dùng, nhả vé đang giữ, phát `TicketsCancelled`. Message trùng bị bỏ qua theo `messageId`.
+- **Job:** mỗi phút nhả vé giữ quá hạn 10 phút cộng 2 phút chờ (`openevent.ticket.release-grace`), để Order hết hạn đơn trước.
