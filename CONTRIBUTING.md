@@ -61,7 +61,7 @@ git switch -c feature/21-ticket-check-in        # feature/<số issue>-<service>
 | Cấu hình, hạ tầng, quy trình | `chore/` |
 | Tài liệu, báo cáo | `docs/` |
 
-Trên board, kéo issue sang **In progress**.
+Trên board, kéo issue sang **In progress**. Đọc lại **tiêu chí chấp nhận** của issue trước khi code: PR chỉ làm đúng các tiêu chí đó, việc phát sinh thì tạo issue mới.
 
 ## Bước 3. Code và test
 
@@ -174,22 +174,50 @@ GitHub → **Compare & pull request**. Base: **`develop`**.
 | Reviewers | CODEOWNERS tự mời; nếu PR chỉ sửa service của mình, mời thêm một thành viên khác |
 | Assignees, Labels, Milestone | Giống issue |
 
-Kiểm tra cột phải **Development** hiện đúng issue. Trên board, kéo issue sang **In review**.
+Kiểm tra cột phải **Development** hiện đúng issue. Trên board, kéo issue sang **In review**. Nhắn reviewer link PR.
+
+Còn làm dở nhưng muốn có góp ý sớm: chọn mũi tên cạnh nút → **Create draft pull request**. Xong thì bấm **Ready for review**; draft PR không merge được.
 
 ## Bước 8. Review
 
-**Người review** (khác người viết):
+Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open review-requested:@me`.
 
-- [ ] Đọc hết code, không chỉ lướt. Chạy thử nếu là luồng quan trọng.
-- [ ] Đúng tiêu chí chấp nhận của issue và quy tắc BR-xx liên quan.
-- [ ] Có test, test qua; không có bí mật trong code.
-- [ ] Comment cụ thể từng dòng; chọn **Approve** hoặc **Request changes**.
+**Người review** (khác người viết) làm theo thứ tự:
+
+1. **Tab *Conversation*:** base là `develop`; tiêu đề đúng quy ước commit (Bước 4); mô tả có `Closes #<số>` và *Cách kiểm thử*; cột phải **Development** hiện đúng issue; label, milestone giống issue. Sai thì comment yêu cầu sửa.
+2. **Tab *Commits*:** mỗi commit một thay đổi, đúng quy ước, có `Refs: #<số>`.
+3. **Tab *Files changed*:** đọc hết từng file, không chỉ lướt; đọc xong tick **Viewed**. Đối chiếu tiêu chí chấp nhận của issue và quy tắc BR-xx; có test; không có `.env`, khóa API, file build.
+4. **Chạy thử** với luồng quan trọng (API, nghiệp vụ, Saga):
+   ```bash
+   gh pr checkout <số PR>               # hoặc: git fetch origin && git switch <nhánh>
+   ./mvnw -pl <service> -am verify      # rồi làm lại các bước trong mục "Cách kiểm thử" của PR
+   git switch develop
+   ```
+5. **Góp ý trên dòng:** rê chuột vào số dòng, bấm **+**, bắt đầu bằng tiền tố:
+
+   | Tiền tố | Nghĩa |
+   | --- | --- |
+   | `blocker:` | Sai, phải sửa mới merge |
+   | `suggestion:` | Nên sửa, tác giả quyết định |
+   | `nit:` | Chi tiết nhỏ, không chặn merge |
+   | `question:` | Cần tác giả giải thích |
+
+   Bấm **Start a review** (không bấm *Add single comment*) để gom góp ý, gửi một lần.
+6. **Gửi kết quả:** **Review changes** → viết nhận xét tổng → chọn:
+
+   | Lựa chọn | Khi nào |
+   | --- | --- |
+   | **Comment** | Chỉ hỏi (`question:`), chưa kết luận |
+   | **Approve** | Không còn `blocker:` (`nit:` vẫn approve được) |
+   | **Request changes** | Có ít nhất một `blocker:`; chặn merge đến khi approve lại |
+
+**Vòng sửa:**
 
 **Người viết** khi bị yêu cầu sửa: sửa bằng **commit mới** (`fix(ticket): ...` + `Refs: #21`), push lên cùng nhánh, trả lời từng comment rồi bấm *Resolve*. **Không force-push** sau khi đã có review.
 
 ## Bước 9. Merge
 
-Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, test qua, không xung đột.
+**Người viết (tác giả PR) merge**, reviewer không merge. Chỉ merge khi: đã có **ít nhất 1 approve**, mọi góp ý đã được reviewer resolve, test qua, không xung đột, PR không còn là draft.
 
 1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`. Trước khi bấm **Confirm squash and merge**, kiểm tra:
    - Tiêu đề: `<type>(<scope>): <subject> (#<số PR>)`, tiếng Anh theo Bước 4, ví dụ `feat(ticket): check in tickets by code (#21)`.
@@ -203,8 +231,8 @@ Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, 
    ```bash
    git switch develop
    git pull
-   git branch -d feature/21-ticket-check-in
    ```
+6. Nhận việc tiếp theo: quay lại Bước 1–2 với issue mới.
 
 ---
 
@@ -218,8 +246,10 @@ Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, 
 [ ] 5. Test: ./mvnw -pl <service> -am verify; npm run build; ghi kết quả
 [ ] 6. Chưa review: rebase develop + push --force-with-lease · Đã review: merge develop + push
 [ ] 7. PR vào develop: "Closes #<số>", cách kiểm thử, ảnh; reviewer; label/milestone; board → In review
-[ ] 8. Sửa theo review bằng commit mới, resolve comment
-[ ] 9. Approve → Squash and merge → xóa nhánh → đóng issue nếu chưa tự đóng → board Done → pull develop
+[ ] 8. Reviewer: Conversation → Commits → Files changed; góp ý blocker/suggestion/nit/question; Approve/Request changes
+       Tác giả: sửa bằng commit mới, trả lời, Re-request review; reviewer resolve
+[ ] 9. Tác giả merge: Squash and merge (giữ nhánh, không xóa) → đóng issue nếu chưa tự đóng → board Done
+       → git switch develop; git pull → nhận issue mới
 ```
 
 ## Cuối mỗi checkpoint: kiểm thử chéo
@@ -267,7 +297,7 @@ Làm ở checkpoint nộp bài (ít nhất CP4). Nhóm trưởng thực hiện.
 
 **Settings → General**
 - *Default branch*: `develop`, để `Closes #n` tự đóng issue khi PR merge vào `develop`.
-- *Pull Requests*: bật *Allow squash merging* với *Default commit message* = **Pull request title and description**; bật *Allow merge commits* (cho release và back-merge); **tắt** *Allow rebase merging*; bật *Automatically delete head branches*.
+- *Pull Requests*: bật *Allow squash merging* với *Default commit message* = **Pull request title and description**; bật *Allow merge commits* (cho release và back-merge); **tắt** *Allow rebase merging*; **tắt** *Automatically delete head branches* (nhóm giữ nhánh sau khi merge).
 
 **Settings → Rules → Rulesets** (repo Private dùng GitHub Free không có mục này thì coi bảng dưới là quy ước bắt buộc):
 
