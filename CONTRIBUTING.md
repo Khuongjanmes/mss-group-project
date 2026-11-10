@@ -25,6 +25,7 @@ git config --global user.email "email-cua-tai-khoan-github@..."   # sai email th
 git config --global pull.rebase true
 git config --global core.autocrlf true
 cp .env.example .env                                              # điền giá trị; .env không bao giờ commit
+git config commit.template .gitmessage                            # chạy trong thư mục repo: "git commit" mở sẵn mẫu Bước 4
 ```
 
 Kiểm tra email: mở một commit của mình trên GitHub, avatar và tên tài khoản phải hiện đúng.

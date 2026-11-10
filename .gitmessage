@@ -1,0 +1,11 @@
+# <type>(<scope>): <subject>   (English, imperative, lowercase, <= 72 chars, no period)
+#
+# <body: VÌ SAO thay đổi (có thể viết tiếng Việt)>
+#
+# Refs: #<issue>
+#
+# type : feat | fix | test | refactor | docs | chore | build
+# scope: identity | gateway | event | ticket | order | payment | notification | frontend
+# 1 commit = 1 thay đổi logic, mỗi commit build được.
+# Phá vỡ tương thích: thêm "!" sau type/scope và footer "BREAKING CHANGE: ...".
+# Dòng bắt đầu bằng # bị bỏ qua. Chi tiết: CONTRIBUTING.md Bước 4.
