@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.web.ApiException;
+import com.openevent.ticket.messaging.ProcessedMessages;
 import com.openevent.ticket.reservations.dto.ReservationRequest;
 import com.openevent.ticket.reservations.dto.ReservationResponse;
 import com.openevent.ticket.tickettypes.TicketType;
@@ -29,12 +30,14 @@ public class ReservationService {
 
     private final ReservationRepository reservations;
     private final TicketTypeRepository types;
+    private final ProcessedMessages processed;
     private final Duration holdFor;
 
     public ReservationService(ReservationRepository reservations, TicketTypeRepository types,
-            @Value("${openevent.ticket.hold-for:PT10M}") Duration holdFor) {
+            ProcessedMessages processed, @Value("${openevent.ticket.hold-for:PT10M}") Duration holdFor) {
         this.reservations = reservations;
         this.types = types;
+        this.processed = processed;
         this.holdFor = holdFor;
     }
 
@@ -85,6 +88,16 @@ public class ReservationService {
             throw new ApiException(HttpStatus.NOT_FOUND, "RESERVATION_NOT_FOUND", "Không có vé đang giữ cho đơn này");
         }
         return toResponse(orderId, found);
+    }
+
+    /** KB-4 bước 5: đơn hủy hoặc hết hạn thì trả vé về kho. Đây là cách nhả vé duy nhất từ Order. */
+    @Transactional
+    public void release(OrderCancelled event) {
+        if (!processed.markNew(event.messageId())) {
+            return;
+        }
+        reservations.findAllWithLockByOrderId(event.orderId()).stream().filter(Reservation::isHeld)
+                .forEach(this::release);
     }
 
     /**
