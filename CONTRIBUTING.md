@@ -147,14 +147,41 @@ Kiểm tra cột phải **Development** hiện đúng issue. Trên board, kéo i
 
 ## Bước 8. Review
 
-**Người review** (khác người viết):
+Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open review-requested:@me`.
 
-- [ ] Đọc hết code, không chỉ lướt. Chạy thử nếu là luồng quan trọng.
-- [ ] Đúng tiêu chí chấp nhận của issue và quy tắc BR-xx liên quan.
-- [ ] Có test, test qua; không có bí mật trong code.
-- [ ] Comment cụ thể từng dòng; chọn **Approve** hoặc **Request changes**.
+**Người review** (khác người viết) làm theo thứ tự:
 
-**Người viết** khi bị yêu cầu sửa: sửa bằng **commit mới** (`fix(ticket): ...` + `Refs #21`), push lên cùng nhánh, trả lời từng comment rồi bấm *Resolve*. **Không force-push** sau khi đã có review.
+1. **Tab *Conversation*:** base là `develop`; tiêu đề đúng quy ước commit (Bước 4); mô tả có `Closes #<số>` và *Cách kiểm thử*; cột phải **Development** hiện đúng issue; label, milestone giống issue. Sai thì comment yêu cầu sửa.
+2. **Tab *Commits*:** mỗi commit một thay đổi, đúng quy ước, có `Refs: #<số>`.
+3. **Tab *Files changed*:** đọc hết từng file, không chỉ lướt; đọc xong tick **Viewed**. Đối chiếu tiêu chí chấp nhận của issue và quy tắc BR-xx; có test; không có `.env`, khóa API, file build.
+4. **Chạy thử** với luồng quan trọng (API, nghiệp vụ, Saga):
+   ```bash
+   gh pr checkout <số PR>               # hoặc: git fetch origin && git switch <nhánh>
+   ./mvnw -pl <service> -am verify      # rồi làm lại các bước trong mục "Cách kiểm thử" của PR
+   git switch develop
+   ```
+5. **Góp ý trên dòng:** rê chuột vào số dòng, bấm **+**, bắt đầu bằng tiền tố:
+
+   | Tiền tố | Nghĩa |
+   | --- | --- |
+   | `blocker:` | Sai, phải sửa mới merge |
+   | `suggestion:` | Nên sửa, tác giả quyết định |
+   | `nit:` | Chi tiết nhỏ, không chặn merge |
+   | `question:` | Cần tác giả giải thích |
+
+   Bấm **Start a review** (không bấm *Add single comment*) để gom góp ý, gửi một lần.
+6. **Gửi kết quả:** **Review changes** → viết nhận xét tổng → chọn:
+
+   | Lựa chọn | Khi nào |
+   | --- | --- |
+   | **Comment** | Chỉ hỏi (`question:`), chưa kết luận |
+   | **Approve** | Không còn `blocker:` (`nit:` vẫn approve được) |
+   | **Request changes** | Có ít nhất một `blocker:`; chặn merge đến khi approve lại |
+
+**Vòng sửa:**
+
+- **Người viết:** sửa bằng **commit mới** (`fix(<scope>): ...`), push lên cùng nhánh; trả lời từng góp ý ("Đã sửa ở commit abc123"); bấm 🔄 **Re-request review** cạnh tên reviewer. **Không force-push** sau khi đã có review. Không tự bấm *Resolve*.
+- **Người review:** xem phần *Changes since your last review*, kiểm tra từng chỗ đã sửa, bấm **Resolve conversation** dưới góp ý đã xử lý xong, rồi Approve hoặc góp ý tiếp.
 
 ## Bước 9. Merge
 
