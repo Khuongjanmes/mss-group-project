@@ -35,20 +35,20 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
-  className,
-  variant = 'default',
-  size = 'default',
-  asChild = false,
-  ...props
-}: React.ComponentProps<'button'> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
+// forwardRef: dự án dùng React 18, ref chưa là prop thường; thiếu ref thì Radix (DropdownMenuTrigger asChild…)
+// không gắn được vào nút và menu không mở.
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<'button'> &
+    VariantProps<typeof buttonVariants> & {
+      asChild?: boolean;
+    }
+>(function Button({ className, variant = 'default', size = 'default', asChild = false, ...props }, ref) {
   const Comp = asChild ? Slot.Root : 'button';
 
   return (
     <Comp
+      ref={ref}
       data-slot="button"
       data-variant={variant}
       data-size={size}
@@ -56,6 +56,6 @@ function Button({
       {...props}
     />
   );
-}
+});
 
 export { Button, buttonVariants };
