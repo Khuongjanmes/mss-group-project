@@ -4,7 +4,7 @@ Làm theo đúng thứ tự dưới đây cho **mọi** tính năng, sửa lỗi
 
 ```
 Issue ─► nhánh từ develop ─► code + test ─► commit (Refs: #n) ─► kiểm thử ─► push
-      ─► PR (Closes #n) ─► review ─► sửa bằng commit mới ─► approve ─► merge ─► xóa nhánh
+      ─► PR (Closes #n) ─► review ─► sửa bằng commit mới ─► approve ─► merge (giữ nhánh)
 ```
 
 **4 quy tắc không được phá:**
@@ -213,7 +213,8 @@ Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open re
 
 **Vòng sửa:**
 
-**Người viết** khi bị yêu cầu sửa: sửa bằng **commit mới** (`fix(ticket): ...` + `Refs: #21`), push lên cùng nhánh, trả lời từng comment rồi bấm *Resolve*. **Không force-push** sau khi đã có review.
+- **Người viết:** sửa bằng **commit mới** (`fix(<scope>): ...` + `Refs: #<số issue>`), push lên cùng nhánh; trả lời từng góp ý ("Đã sửa ở commit abc123"); bấm 🔄 **Re-request review** cạnh tên reviewer. **Không force-push** sau khi đã có review. Không tự bấm *Resolve*.
+- **Người review:** xem phần *Changes since your last review*, kiểm tra từng chỗ đã sửa, bấm **Resolve conversation** dưới góp ý đã xử lý xong, rồi Approve hoặc góp ý tiếp.
 
 ## Bước 9. Merge
 
@@ -224,7 +225,7 @@ Tìm PR cần review: tab **Pull requests** → ô tìm kiếm `is:pr is:open re
    - Mô tả: xóa danh sách commit con GitHub tự điền; giữ một đoạn ngắn vì sao, dòng `Closes #<số issue>` và các dòng `Co-authored-by:` nếu có.
 
    Merge commit chỉ dùng cho PR release vào `main` và PR back-merge (xem [Release vào main](#release-vào-main)).
-2. Bấm **Delete branch**.
+2. **Không xóa nhánh** (không bấm *Delete branch*, không `git branch -d`). Squash chỉ gộp commit trên `develop`; nhánh giữ lại các commit nhỏ của PR để xem lịch sử từng người. Nhánh đã merge thì không push thêm; việc mới luôn tạo nhánh mới từ `develop`.
 3. Nếu issue chưa tự đóng (khi nhánh mặc định chưa phải `develop`): đóng tay, comment `Hoàn thành qua PR #<số>`.
 4. Board: issue sang **Done**.
 5. Trên máy:
