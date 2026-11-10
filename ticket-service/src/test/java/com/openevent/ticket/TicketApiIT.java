@@ -193,6 +193,55 @@ class TicketApiIT extends TicketIntegrationTest {
     }
 
     @Test
+    void staffChecksInOnceDuringEventDaysAndHostKeepsWorkingWhenEventIsDown() {
+        UUID eventId = event(Duration.ofMinutes(2));
+        Instant saleEnd = Instant.now().plus(Duration.ofMinutes(1));
+        Response created = send("POST", "/api/ticket-types", typeBody(eventId, "Vé cổng", 3, "0", saleEnd), host);
+        String id = created.text("id");
+        UUID orderId = UUID.randomUUID();
+        reserve(orderId, Map.of(id, 3));
+        pay(orderId, eventId, buyer);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> myTickets(buyer).size() == 3);
+        List<String> codes = myTickets(buyer).valueStream().map(ticket -> ticket.path("code").asString()).toList();
+
+        Caller staff = stranger;
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff).code())
+                .isEqualTo("NOT_EVENT_MANAGER");
+        fakeEvents.get(eventId).staff().add(staff.id());
+        Response checkedIn = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff);
+        assertThat(checkedIn.text("status")).isEqualTo("CHECKED_IN");
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff).code())
+                .isEqualTo("ALREADY_CHECKED_IN");
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", "khong-co"), staff).code())
+                .isEqualTo("TICKET_NOT_FOUND");
+
+        // Event lỗi: bản cache chỉ có HOST (KB-3 bước 3).
+        eventDown = true;
+        try {
+            assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(1)), staff).code())
+                    .isEqualTo("EVENT_UNAVAILABLE");
+            assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(1)), host).text("status"))
+                    .isEqualTo("CHECKED_IN");
+        } finally {
+            eventDown = false;
+        }
+
+    }
+
+    @Test
+    void checkInOutsideEventDaysIsRejected() {
+        UUID eventId = event(Duration.ofDays(3));
+        String id = createType(eventId, "Thường", 1, "0");
+        UUID orderId = UUID.randomUUID();
+        reserve(orderId, Map.of(id, 1));
+        pay(orderId, eventId, buyer);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).until(() -> ticketOfType(id) != null);
+
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", ticketOfType(id)), host).code())
+                .isEqualTo("OUTSIDE_EVENT_DAYS");
+    }
+
+    @Test
     void cancelledEventCancelsTicketsAndNotifiesOwners() {
         String cancelledQueue = probe("tickets-cancelled-probe", Messaging.TICKETS_CANCELLED);
         UUID eventId = event(Duration.ofDays(3));
@@ -210,6 +259,8 @@ class TicketApiIT extends TicketIntegrationTest {
                 .isInstanceOfSatisfying(TicketsCancelled.class, event -> assertThat(event.ownerIds()).containsExactly(buyer.id()));
         assertThat(myTickets(buyer).valueStream().map(ticket -> ticket.path("status").asString()))
                 .containsExactly("CANCELLED");
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", ticketOfType(id)), host).code())
+                .isEqualTo("TICKET_CANCELLED");
         assertThat(type(id).path("reservedQuantity").asInt()).isZero();
     }
 

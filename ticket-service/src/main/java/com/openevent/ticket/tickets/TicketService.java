@@ -1,6 +1,8 @@
 package com.openevent.ticket.tickets;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -9,13 +11,18 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.openevent.common.messaging.events.EventCancelled;
 import com.openevent.common.messaging.events.OrderPaid;
 import com.openevent.common.messaging.events.TicketIssued;
 import com.openevent.common.messaging.events.TicketsCancelled;
+import com.openevent.common.web.ApiException;
+import com.openevent.ticket.client.EventDirectory;
+import com.openevent.ticket.client.EventDirectory.EventWindow;
 import com.openevent.ticket.messaging.ProcessedMessages;
 import com.openevent.ticket.reservations.Reservation;
 import com.openevent.ticket.reservations.ReservationRepository;
@@ -27,18 +34,24 @@ import com.openevent.ticket.tickettypes.TicketTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Phát hành vé (KB-4), hủy vé khi hủy sự kiện (KB-5). */
+/** Phát hành vé (KB-4), hủy vé khi hủy sự kiện (KB-5), check-in (KB-3, BR-09). */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TicketService {
+
+    /** Ngày diễn ra tính theo giờ Việt Nam. */
+    private static final ZoneId VIETNAM = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final TicketRepository tickets;
     private final TicketTypeRepository types;
     private final ReservationRepository reservations;
     private final ReservationService reservationService;
     private final ProcessedMessages processed;
+    private final EventDirectory events;
     private final ApplicationEventPublisher publisher;
+    /** Gọi Event ngoài transaction: không giữ kết nối DB trong lúc chờ mạng. */
+    private final TransactionTemplate tx;
 
     @Transactional(readOnly = true)
     public List<TicketResponse> mine(UUID ownerId) {
@@ -100,6 +113,38 @@ public class TicketService {
         reservationService.releaseEvent(event.eventId());
         if (!owners.isEmpty()) {
             publisher.publishEvent(new TicketsCancelled(UUID.randomUUID(), Instant.now(), event.eventId(), owners));
+        }
+    }
+
+    /**
+     * KB-3: lấy sự kiện từ vé trong DB (không tin client), hỏi Event quyền {@code canCheckIn} ngoài transaction,
+     * rồi khóa vé và check-in. Event lỗi thì chỉ HOST theo bản cache check-in được.
+     */
+    public TicketResponse checkIn(UUID callerId, String code) {
+        TicketType type = tx.execute(status -> tickets.findByCode(code.trim())
+                .flatMap(ticket -> types.findById(ticket.getTicketTypeId()))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TICKET_NOT_FOUND", "Không tìm thấy vé")));
+        EventWindow window = events.requireCheckIn(type.getEventId(), callerId, new EventWindow(
+                type.getEventOrganizerId(), type.getEventStartTime(), type.getEventEndTime(), false));
+        return tx.execute(status -> {
+            if (window.fromEvent()) {
+                types.refreshEventCache(type.getEventId(), window.organizerId(), window.startTime(), window.endTime());
+            }
+            Ticket ticket = tickets.findWithLockByCode(code.trim()).orElseThrow();
+            ticket.requireUsable();
+            requireEventDay(window);
+            ticket.checkIn(Instant.now());
+            return TicketResponse.from(tickets.save(ticket), types.findById(ticket.getTicketTypeId()).orElse(null));
+        });
+    }
+
+    /** BR-09: chỉ trong khoảng ngày diễn ra, từ ngày bắt đầu đến ngày kết thúc. */
+    private static void requireEventDay(EventWindow window) {
+        LocalDate today = LocalDate.now(VIETNAM);
+        if (today.isBefore(window.startTime().atZone(VIETNAM).toLocalDate())
+                || today.isAfter(window.endTime().atZone(VIETNAM).toLocalDate())) {
+            throw new ApiException(HttpStatus.CONFLICT, "OUTSIDE_EVENT_DAYS",
+                    "Chỉ check-in được trong những ngày sự kiện diễn ra");
         }
     }
 
