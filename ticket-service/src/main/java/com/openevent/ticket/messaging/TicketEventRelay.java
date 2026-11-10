@@ -6,6 +6,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.openevent.common.messaging.Messaging;
 import com.openevent.common.messaging.events.TicketIssued;
+import com.openevent.common.messaging.events.TicketsCancelled;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,4 +25,8 @@ class TicketEventRelay {
         rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.TICKET_ISSUED, event);
     }
 
+    @TransactionalEventListener
+    void send(TicketsCancelled event) {
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.TICKETS_CANCELLED, event);
+    }
 }

@@ -12,11 +12,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.openevent.common.messaging.events.EventCancelled;
 import com.openevent.common.messaging.events.OrderPaid;
 import com.openevent.common.messaging.events.TicketIssued;
+import com.openevent.common.messaging.events.TicketsCancelled;
 import com.openevent.ticket.messaging.ProcessedMessages;
 import com.openevent.ticket.reservations.Reservation;
 import com.openevent.ticket.reservations.ReservationRepository;
+import com.openevent.ticket.reservations.ReservationService;
 import com.openevent.ticket.tickets.dto.TicketResponse;
 import com.openevent.ticket.tickettypes.TicketType;
 import com.openevent.ticket.tickettypes.TicketTypeRepository;
@@ -24,7 +27,7 @@ import com.openevent.ticket.tickettypes.TicketTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Phát hành vé (KB-4). */
+/** Phát hành vé (KB-4), hủy vé khi hủy sự kiện (KB-5). */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,7 @@ public class TicketService {
     private final TicketRepository tickets;
     private final TicketTypeRepository types;
     private final ReservationRepository reservations;
+    private final ReservationService reservationService;
     private final ProcessedMessages processed;
     private final ApplicationEventPublisher publisher;
 
@@ -82,6 +86,20 @@ public class TicketService {
         if (!codes.isEmpty()) {
             publisher.publishEvent(new TicketIssued(UUID.randomUUID(), now, event.orderId(), event.userId(),
                     event.eventId(), codes));
+        }
+    }
+
+    /** KB-5 bước 2: hủy vé chưa dùng, nhả vé đang giữ, báo Notification những người cần nhận email. */
+    @Transactional
+    public void cancelEvent(EventCancelled event) {
+        if (!processed.markNew(event.messageId())) {
+            return;
+        }
+        List<UUID> owners = tickets.ownersWithIssuedTickets(event.eventId());
+        tickets.cancelIssuedOfEvent(event.eventId());
+        reservationService.releaseEvent(event.eventId());
+        if (!owners.isEmpty()) {
+            publisher.publishEvent(new TicketsCancelled(UUID.randomUUID(), Instant.now(), event.eventId(), owners));
         }
     }
 

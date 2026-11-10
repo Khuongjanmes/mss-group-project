@@ -1,7 +1,5 @@
 package com.openevent.ticket.messaging;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -20,8 +18,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TicketEventListener {
 
-    private static final Logger log = LoggerFactory.getLogger(TicketEventListener.class);
-
     private final TicketService tickets;
     private final ReservationService reservations;
 
@@ -37,7 +33,6 @@ public class TicketEventListener {
 
     @RabbitHandler
     public void on(EventCancelled event) {
-        // TODO: hủy vé khi sự kiện bị hủy (KB-5).
-        log.info("Nhận EventCancelled: {}", event.messageId());
+        tickets.cancelEvent(event);
     }
 }
