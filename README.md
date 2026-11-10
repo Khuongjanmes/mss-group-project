@@ -13,8 +13,8 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [api-gateway/](api-gateway/) | 8080 | — | TV1 @YuiGuende | Hoàn thành |
 | [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 @YuiGuende | Hoàn thành |
 | [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Khung |
-| [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Khung |
-| [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Khung |
+| [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
+| [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
 | [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Khung |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
@@ -46,6 +46,23 @@ Thử nhanh:
 curl -X POST http://localhost:8080/api/auth/register -H "Content-Type: application/json" \
   -d '{"email":"a@example.com","password":"Passw0rd!","fullName":"Nguyen Van A"}'
 ```
+
+## Dữ liệu mẫu
+
+Sau khi `docker compose up -d --build` và các service đã healthy:
+
+```bash
+node scripts/seed.mjs        # Node 18+; đọc BOOTSTRAP_ADMIN_* trong .env; chạy lại không tạo trùng
+```
+
+Script gọi API qua Gateway và tạo: 5 danh mục, 4 địa điểm ở Đà Nẵng, tổ chức *FPT Event Club*, 8 sự kiện (6 đã duyệt, 1 chờ duyệt, 1 bản nháp). Loại vé chưa có: đăng nhập ban tổ chức, vào **Quản lý sự kiện → chi tiết sự kiện → Loại vé** để tạo.
+
+| Tài khoản | Mật khẩu | Vai trò |
+| --- | --- | --- |
+| `admin@openevent.local` | `BOOTSTRAP_ADMIN_PASSWORD` trong `.env` | Admin: duyệt sự kiện, danh mục, địa điểm, giao dịch |
+| `organizer@openevent.local` | `Organizer@123` | OWNER của FPT Event Club, HOST các sự kiện mẫu |
+| `manager@openevent.local` | `Organizer@123` | MANAGER của FPT Event Club |
+| `student1@openevent.local`, `student2@openevent.local` | `Student@123` | Người mua vé |
 
 ## Phát triển một service trên máy
 
