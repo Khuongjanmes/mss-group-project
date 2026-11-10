@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/common/feedba
 import { Button } from '@/components/ui/button';
 import { EventDetailView } from '@/events/EventDetailView';
 import { RelatedEvents } from '@/events/RelatedEvents';
+import { TicketTypeList } from '@/events/TicketTypeList';
 
 /** Trang công khai của một sự kiện. Phần loại vé và đặt vé (Ticket, Order) sẽ gắn vào `aside` của thẻ thông tin. */
 export default function EventDetailPage() {
@@ -55,7 +56,7 @@ export default function EventDetailPage() {
           Tất cả sự kiện
         </Link>
       </Button>
-      <EventDetailView event={event} />
+      <EventDetailView event={event} aside={<TicketTypeList eventId={event.id} />} />
       <RelatedEvents event={event} />
     </div>
   );

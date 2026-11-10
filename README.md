@@ -224,3 +224,13 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 - **Webhook payOS:** khai báo `https://<domain công khai>/api/payments/payos-webhook` ở my.payos.vn. Chạy ở máy cá nhân thì payOS không gọi vào được; trang kết quả tự hỏi lại payOS nên vẫn cập nhật được trạng thái.
 - **Message:** phát `PaymentSucceeded` hoặc `PaymentFailed` sau khi commit; nhận `OrderRefundRequested` thì chuyển giao dịch SUCCESS của đơn sang REFUND_PENDING (bỏ qua message trùng theo `messageId`).
 - **Callback trùng (BR-11):** khóa dòng theo `transaction_ref`; mọi callback được ghi vào `payment_logs`, giao dịch đã xử lý thì không đổi nữa.
+
+## API Ticket
+
+| Method | Đường dẫn | Quyền | Mô tả |
+| --- | --- | --- | --- |
+| GET | `/api/ticket-types?eventId`, `/api/ticket-types/{id}` | Công khai | Loại vé kèm `available` (tổng trừ đã bán và đang giữ) |
+| POST | `/api/ticket-types` | Người quản lý sự kiện | `{eventId, name, price, totalQuantity, saleStart, saleEnd}`; mở bán kết thúc trước khi sự kiện bắt đầu (BR-07) |
+| PUT, DELETE | `/api/ticket-types/{id}` | Người quản lý sự kiện | Sự kiện lấy từ loại vé trong DB. Không giảm tổng dưới đã bán cộng đang giữ (BR-06); chỉ xóa loại chưa từng được giữ |
+
+- **Quyền:** Gateway chỉ yêu cầu đăng nhập; Ticket hỏi Event `/internal/events/{id}/access` cho mọi thao tác ghi trên loại vé. Event lỗi thì từ chối (503).
