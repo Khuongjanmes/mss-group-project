@@ -6,32 +6,37 @@ import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
-import com.openevent.common.messaging.events.OrderPaid;
-import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.messaging.events.EventCancelled;
+import com.openevent.common.messaging.events.OrderCancelled;
+import com.openevent.common.messaging.events.OrderPaid;
+import com.openevent.ticket.reservations.ReservationService;
 
-/** Khung nhận sự kiện theo requirement.md mục 3.2 và KB-4, KB-5. */
+import lombok.RequiredArgsConstructor;
+
+/** KB-4, KB-5. Mỗi handler bỏ qua message trùng theo messageId (BR-11). */
 @Component
 @RabbitListener(queues = MessagingConfig.QUEUE)
+@RequiredArgsConstructor
 public class TicketEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(TicketEventListener.class);
 
+    private final ReservationService reservations;
+
     @RabbitHandler
     public void on(OrderPaid event) {
-        // TODO: xử lý nghiệp vụ; bỏ qua nếu event.messageId() đã xử lý (BR-11).
+        // TODO: phát hành vé khi đơn đã thanh toán (KB-4).
         log.info("Nhận OrderPaid: {}", event.messageId());
     }
 
     @RabbitHandler
     public void on(OrderCancelled event) {
-        // TODO: xử lý nghiệp vụ; bỏ qua nếu event.messageId() đã xử lý (BR-11).
-        log.info("Nhận OrderCancelled: {}", event.messageId());
+        reservations.release(event);
     }
 
     @RabbitHandler
     public void on(EventCancelled event) {
-        // TODO: xử lý nghiệp vụ; bỏ qua nếu event.messageId() đã xử lý (BR-11).
+        // TODO: hủy vé khi sự kiện bị hủy (KB-5).
         log.info("Nhận EventCancelled: {}", event.messageId());
     }
 }

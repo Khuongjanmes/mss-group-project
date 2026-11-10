@@ -13,9 +13,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.openevent.common.messaging.Messaging;
+import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.ticket.reservations.ReservationService;
 
 import tools.jackson.databind.JsonNode;
@@ -132,6 +135,22 @@ class TicketApiIT extends TicketIntegrationTest {
         JsonNode type = type(id);
         assertThat(type.path("reservedQuantity").asInt()).isEqualTo(10);
         assertThat(type.path("available").asInt()).isZero();
+    }
+
+    @Test
+    void cancelledOrderReturnsSeats() {
+        UUID eventId = event(Duration.ofDays(3));
+        String id = createType(eventId, "Thường", 3, "100000");
+        UUID cancelled = UUID.randomUUID();
+        reserve(cancelled, Map.of(id, 3));
+        assertThat(type(id).path("available").asInt()).isZero();
+
+        OrderCancelled message = new OrderCancelled(UUID.randomUUID(), Instant.now(), cancelled, "Hết hạn");
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.ORDER_CANCELLED, message);
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.ORDER_CANCELLED, message);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(type(id).path("available").asInt()).isEqualTo(3));
+        assertThat(type(id).path("reservedQuantity").asInt()).isZero();
     }
 
 }
