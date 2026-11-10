@@ -14,6 +14,13 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, UUID> {
 
     List<TicketType> findAllByEventIdOrderByPriceAscNameAsc(UUID eventId);
 
+    /** Giữ vé: chỉ thành công khi còn đủ chỗ. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE ticket_types SET reserved_quantity = reserved_quantity + :q
+            WHERE id = :id AND total_quantity - sold_quantity - reserved_quantity >= :q""", nativeQuery = true)
+    int reserve(@Param("id") UUID id, @Param("q") int quantity);
+
     /** BR-06: không giảm tổng xuống dưới số đã bán cộng đang giữ. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = """
