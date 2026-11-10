@@ -186,7 +186,11 @@ Kiểm tra cột phải **Development** hiện đúng issue. Trên board, kéo i
 
 Chỉ merge khi: đã có **ít nhất 1 approve**, mọi comment đã resolve, test qua, không xung đột.
 
-1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`, tiêu đề giữ dạng Conventional Commits, mô tả lấy từ PR. Merge commit chỉ dùng cho PR release vào `main` và PR back-merge (xem [Release vào main](#release-vào-main)).
+1. Bấm **Squash and merge**: cả PR thành một commit trên `develop`. Trước khi bấm **Confirm squash and merge**, kiểm tra:
+   - Tiêu đề: `<type>(<scope>): <subject> (#<số PR>)`, tiếng Anh theo Bước 4, ví dụ `feat(ticket): check in tickets by code (#21)`.
+   - Mô tả: xóa danh sách commit con GitHub tự điền; giữ một đoạn ngắn vì sao, dòng `Closes #<số issue>` và các dòng `Co-authored-by:` nếu có.
+
+   Merge commit chỉ dùng cho PR release vào `main` và PR back-merge (xem [Release vào main](#release-vào-main)).
 2. Bấm **Delete branch**.
 3. Nếu issue chưa tự đóng (khi nhánh mặc định chưa phải `develop`): đóng tay, comment `Hoàn thành qua PR #<số>`.
 4. Board: issue sang **Done**.
