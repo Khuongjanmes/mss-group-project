@@ -286,3 +286,4 @@ Cả hai ruleset: **Bypass list → Repository admin**. Lý do: khi bật *Requi
 - Ghi rõ phần nào dùng AI vào **mục 3 của báo cáo** (System Architecture).
 - Người commit phải **hiểu và giải thích được mọi dòng** mình nộp; không giải thích được thì phần đó 0 điểm khi demo.
 - Đọc lại code AI sinh ra trước khi commit; không dán khóa API hay `.env` vào công cụ AI.
+- **Không** để dấu vết công cụ AI trong commit, PR, issue hay comment review: không có dòng `Co-Authored-By: Claude …` (hay của công cụ AI khác), không có dòng `🤖 Generated with …`, không có câu "soạn cùng AI". Công cụ tự thêm thì xóa trước khi commit hoặc trước khi tạo PR. Việc dùng AI chỉ khai báo trong báo cáo (mục 3). Commit được tính cho người commit, nên người đó chịu trách nhiệm toàn bộ nội dung.
