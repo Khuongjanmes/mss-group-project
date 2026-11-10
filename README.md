@@ -44,6 +44,23 @@ curl -X POST http://localhost:8080/api/auth/register -H "Content-Type: applicati
   -d '{"email":"a@example.com","password":"Passw0rd!","fullName":"Nguyen Van A"}'
 ```
 
+## Dữ liệu mẫu
+
+Sau khi `docker compose up -d --build` và các service đã healthy:
+
+```bash
+node scripts/seed.mjs        # Node 18+; đọc BOOTSTRAP_ADMIN_* trong .env; chạy lại không tạo trùng
+```
+
+Script gọi API qua Gateway và tạo: 5 danh mục, 4 địa điểm ở Đà Nẵng, tổ chức *FPT Event Club*, 8 sự kiện (6 đã duyệt, 1 chờ duyệt, 1 bản nháp). Loại vé chưa có: đăng nhập ban tổ chức, vào **Quản lý sự kiện → chi tiết sự kiện → Loại vé** để tạo.
+
+| Tài khoản | Mật khẩu | Vai trò |
+| --- | --- | --- |
+| `admin@openevent.local` | `BOOTSTRAP_ADMIN_PASSWORD` trong `.env` | Admin: duyệt sự kiện, danh mục, địa điểm, giao dịch |
+| `organizer@openevent.local` | `Organizer@123` | OWNER của FPT Event Club, HOST các sự kiện mẫu |
+| `manager@openevent.local` | `Organizer@123` | MANAGER của FPT Event Club |
+| `student1@openevent.local`, `student2@openevent.local` | `Student@123` | Người mua vé |
+
 ## Phát triển một service trên máy
 
 Chạy hạ tầng bằng Docker rồi chạy service đang làm từ IDE hoặc Maven.
