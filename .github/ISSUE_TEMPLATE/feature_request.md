@@ -18,5 +18,5 @@ assignees: ""
 <!-- Ví dụ BR-01, KB-3. Bỏ trống nếu không có -->
 
 ## Ghi chú kỹ thuật
-Nhánh `feature/<số issue>-<tên ngắn>` · Service: <!-- event-service, ... -->
+Nhánh `feature/<số issue>-<service>-<tính năng>` · Service: <!-- event-service, ... -->
 **Reviewer:** <!-- người khác người làm -->
