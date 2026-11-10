@@ -122,7 +122,12 @@ git commit -m "feat(ticket): check in tickets by code" -m "Staff scan QR at the 
 | `docs` | README, requirement.md, báo cáo |
 | `chore` | Cấu hình, build, CI, quy trình |
 
-Phần trong ngoặc là service: `identity`, `gateway`, `event`, `ticket`, `order`, `payment`, `notification`, `frontend`.
+Phần trong ngoặc (scope) là **tùy chọn**, ghi phạm vi bị sửa:
+- Service: `identity`, `gateway`, `event`, `ticket`, `order`, `payment`, `notification`, `frontend`.
+- Phạm vi chung: `docker` (Dockerfile, compose), `postman` (collection), `github` (mẫu issue/PR, CODEOWNERS).
+- Không thuộc phạm vi nào (ví dụ tài liệu quy trình chung như CONTRIBUTING.md) thì bỏ scope: `docs: adopt mss301 commit conventions`.
+
+Một commit chỉ có một scope; sửa nhiều service thì thường là nên tách commit (quy tắc 2).
 
 Trước mỗi lần commit, xem lại: `git status` và `git diff --staged`. Thấy `.env`, khóa API hay file build thì bỏ ra.
 
