@@ -82,3 +82,8 @@ export async function deleteTicketType(id: string): Promise<void> {
 export async function myTickets(): Promise<Ticket[]> {
   return (await api.get<Ticket[]>('/api/tickets/my')).data
 }
+
+/** Người quản lý sự kiện hoặc STAFF. */
+export async function checkInTicket(code: string): Promise<Ticket> {
+  return (await api.post<Ticket>('/api/tickets/check-in', { code })).data
+}
