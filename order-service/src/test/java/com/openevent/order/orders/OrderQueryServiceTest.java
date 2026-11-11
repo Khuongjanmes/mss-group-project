@@ -3,15 +3,21 @@ package com.openevent.order.orders;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import com.openevent.common.web.ApiException;
+import com.openevent.common.web.PageResponse;
+import com.openevent.order.orders.dto.OrderResponse;
 import com.openevent.order.orders.dto.OrderSummaryResponse;
 
 class OrderQueryServiceTest {
@@ -33,6 +39,22 @@ class OrderQueryServiceTest {
         assertThat(summary.status()).isEqualTo(OrderStatus.PENDING);
         assertThat(summary.totalAmount()).isZero();
         assertThat(summary.expiresAt()).isEqualTo(expiresAt);
+    }
+
+    @Test
+    void myOrdersArePagedForTheCaller() {
+        UUID userId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+        PageRequest second = PageRequest.of(1, 2);
+        when(orders.findByUserIdOrderByCreatedAtDesc(eq(userId), eq(second))).thenReturn(new PageImpl<>(
+                List.of(Order.open(userId, eventId, 1, Instant.now())), second, 3));
+
+        PageResponse<OrderResponse> page = service.mine(userId, 1, 2);
+
+        assertThat(page.content()).singleElement().satisfies(order -> assertThat(order.eventId()).isEqualTo(eventId));
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.totalElements()).isEqualTo(3);
+        assertThat(page.totalPages()).isEqualTo(2);
     }
 
     @Test

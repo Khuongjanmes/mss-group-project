@@ -142,9 +142,18 @@ class OrderApiIT {
     }
 
     private Response post(UUID caller, Object body) throws Exception {
-        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/orders"))
+        return send("POST", "/api/orders", caller, body);
+    }
+
+    private Response get(UUID caller, String path) throws Exception {
+        return send("GET", path, caller, null);
+    }
+
+    private Response send(String method, String path, UUID caller, Object body) throws Exception {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+                .method(method, body == null ? HttpRequest.BodyPublishers.noBody()
+                        : HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
         if (caller != null) {
             request.header("X-User-Id", caller.toString()).header("X-User-Roles", "USER");
         }
@@ -297,6 +306,30 @@ class OrderApiIT {
         HttpResponse<String> response = getInternal("/internal/orders/" + UUID.randomUUID());
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(json.readTree(response.body()).path("code").asString()).isEqualTo("ORDER_NOT_FOUND");
+    }
+
+    @Test
+    void myOrdersAreNewestFirstAndOnlyMine() throws Exception {
+        String first = post(userId, order(vip, 1)).body().path("id").asString();
+        String second = post(userId, order(standard, 1)).body().path("id").asString();
+        assertThat(post(UUID.randomUUID(), order(vip, 1)).status()).isEqualTo(201);
+
+        Response page0 = get(userId, "/api/orders/my?size=1");
+        assertThat(page0.status()).isEqualTo(200);
+        assertThat(page0.body().path("totalElements").asLong()).isEqualTo(2);
+        assertThat(page0.body().path("content").get(0).path("id").asString()).isEqualTo(second);
+        assertThat(page0.body().path("content").get(0).path("items")).hasSize(1);
+
+        Response page1 = get(userId, "/api/orders/my?size=1&page=1");
+        assertThat(page1.body().path("content").get(0).path("id").asString()).isEqualTo(first);
+        assertThat(page1.body().path("content").get(0).path("status").asString()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void myOrdersRequireLoginAndValidPaging() throws Exception {
+        assertThat(get(null, "/api/orders/my").status()).isEqualTo(401);
+        assertThat(get(userId, "/api/orders/my?size=0").status()).isEqualTo(400);
+        assertThat(get(userId, "/api/orders/my?size=101").status()).isEqualTo(400);
     }
 
     @Test
