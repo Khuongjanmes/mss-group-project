@@ -40,6 +40,10 @@ import org.testcontainers.containers.RabbitMQContainer;
 
 import com.openevent.common.messaging.Messaging;
 import com.openevent.common.messaging.events.OrderCancelled;
+import com.openevent.common.messaging.events.OrderPaid;
+import com.openevent.common.messaging.events.OrderRefundRequested;
+import com.openevent.common.messaging.events.PaymentFailed;
+import com.openevent.common.messaging.events.PaymentSucceeded;
 import com.openevent.order.client.EventClient;
 import com.openevent.order.client.EventClient.EventSummary;
 import com.openevent.order.client.FeignErrors;
@@ -75,6 +79,8 @@ class OrderApiIT {
     }
 
     private static final String CANCELLED_PROBE = "order-api-it.order-cancelled";
+    private static final String PAID_PROBE = "order-api-it.order-paid";
+    private static final String REFUND_PROBE = "order-api-it.order-refund-requested";
     private static final BigDecimal PRICE = new BigDecimal("1000000");
 
     record Response(int status, JsonNode body) {
@@ -124,13 +130,30 @@ class OrderApiIT {
                 "PUBLISHED", Instant.now().plusSeconds(86_400), Instant.now().plusSeconds(90_000)));
         when(tickets.reserve(any())).thenAnswer(call -> holdAll(call.getArgument(0), eventId));
 
-        // Không auto-delete: test đọc nhiều message liên tiếp, queue không được mất sau lần đọc đầu.
-        Queue probe = new Queue(CANCELLED_PROBE, false, false, false);
+        probe(CANCELLED_PROBE, Messaging.ORDER_CANCELLED);
+        probe(PAID_PROBE, Messaging.ORDER_PAID);
+        probe(REFUND_PROBE, Messaging.ORDER_REFUND_REQUESTED);
+    }
+
+    /** Queue nghe message Order phát. Không auto-delete: test đọc nhiều message liên tiếp từ cùng queue. */
+    private void probe(String queue, String routingKey) {
+        Queue probe = new Queue(queue, false, false, false);
         amqp.declareQueue(probe);
-        Binding binding = BindingBuilder.bind(probe).to(new TopicExchange(Messaging.EXCHANGE))
-                .with(Messaging.ORDER_CANCELLED);
+        Binding binding = BindingBuilder.bind(probe).to(new TopicExchange(Messaging.EXCHANGE)).with(routingKey);
         amqp.declareBinding(binding);
-        amqp.purgeQueue(CANCELLED_PROBE);
+        amqp.purgeQueue(queue);
+    }
+
+    /** Payment phát kết quả lên exchange như thật; Order nhận qua queue của mình. */
+    private PaymentSucceeded paymentSucceeded(String orderId) {
+        PaymentSucceeded event = new PaymentSucceeded(UUID.randomUUID(), Instant.now(), UUID.randomUUID(),
+                UUID.fromString(orderId), new BigDecimal("1000000"), "TX-" + orderId);
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.PAYMENT_SUCCEEDED, event);
+        return event;
+    }
+
+    private Object receive(String queue, long timeoutMillis) {
+        return rabbit.receiveAndConvert(queue, timeoutMillis);
     }
 
     private static ReservationResponse holdAll(ReservationRequest request, UUID ofEvent) {
@@ -442,6 +465,88 @@ class OrderApiIT {
         assertThat(ids).allSatisfy(id -> assertThat(status(id)).isEqualTo("EXPIRED"));
         assertThat(drainCancelled()).extracting(event -> event.orderId().toString())
                 .containsExactlyInAnyOrderElementsOf(ids);
+    }
+
+    @Test
+    void paymentMarksOrderPaidOnceEvenIfMessageIsRedelivered() throws Exception {
+        String id = post(userId, order(vip, 2)).body().path("id").asString();
+
+        PaymentSucceeded payment = paymentSucceeded(id);
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.PAYMENT_SUCCEEDED, payment);
+
+        assertThat(receive(PAID_PROBE, 10_000)).isInstanceOfSatisfying(OrderPaid.class, paid -> {
+            assertThat(paid.orderId()).hasToString(id);
+            assertThat(paid.userId()).isEqualTo(userId);
+            assertThat(paid.eventId()).isEqualTo(eventId);
+        });
+        assertThat(receive(PAID_PROBE, 2_000)).isNull();
+        assertThat(status(id)).isEqualTo("PAID");
+        assertThat(quota(userId)).isEqualTo(2);
+        assertThat(cancel(userId, id).code()).isEqualTo("ORDER_NOT_PENDING");
+    }
+
+    @Test
+    void latePaymentOnExpiredOrderIsRefundedWithoutTickets() throws Exception {
+        String id = post(userId, order(vip, 1)).body().path("id").asString();
+        overdue(id);
+        store.expireDue(Instant.now(), 200);
+
+        paymentSucceeded(id);
+
+        assertThat(receive(REFUND_PROBE, 10_000)).isInstanceOfSatisfying(OrderRefundRequested.class, refund -> {
+            assertThat(refund.orderId()).hasToString(id);
+            assertThat(refund.reason()).isEqualTo("ORDER_EXPIRED");
+        });
+        assertThat(receive(PAID_PROBE, 2_000)).isNull();
+        assertThat(status(id)).isEqualTo("EXPIRED");
+    }
+
+    @Test
+    void failedPaymentCancelsOrderAndReleasesTickets() throws Exception {
+        String id = post(userId, order(vip, 2)).body().path("id").asString();
+
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.PAYMENT_FAILED, new PaymentFailed(UUID.randomUUID(),
+                Instant.now(), UUID.randomUUID(), UUID.fromString(id), "Thanh toán không thành công"));
+
+        OrderCancelled cancelled = receiveCancelled();
+        assertThat(cancelled).isNotNull();
+        assertThat(cancelled.orderId()).hasToString(id);
+        assertThat(cancelled.reason()).isEqualTo("PAYMENT_FAILED");
+        assertThat(status(id)).isEqualTo("CANCELLED");
+        assertThat(quota(userId)).isZero();
+    }
+
+    /** Người dùng hủy đúng lúc tiền về: đơn chỉ có một kết cục, và message khớp với kết cục đó. */
+    @Test
+    void paymentRacingCancelEndsInOneConsistentOutcome() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            for (int round = 0; round < 5; round++) {
+                UUID buyer = UUID.randomUUID();
+                String id = post(buyer, order(vip, 1)).body().path("id").asString();
+                PaymentSucceeded payment = new PaymentSucceeded(UUID.randomUUID(), Instant.now(), UUID.randomUUID(),
+                        UUID.fromString(id), PRICE, "TX-" + round);
+
+                Future<?> paid = pool.submit(() -> store.paymentSucceeded(payment));
+                Future<Response> cancelled = pool.submit(() -> cancel(buyer, id));
+                paid.get();
+                int cancelStatus = cancelled.get().status();
+
+                if (status(id).equals("PAID")) {
+                    assertThat(cancelStatus).isEqualTo(409);
+                    assertThat(receive(PAID_PROBE, 10_000)).isInstanceOf(OrderPaid.class);
+                    assertThat(receive(REFUND_PROBE, 1_000)).isNull();
+                } else {
+                    assertThat(status(id)).isEqualTo("CANCELLED");
+                    assertThat(cancelStatus).isEqualTo(200);
+                    assertThat(receive(REFUND_PROBE, 10_000)).isInstanceOfSatisfying(OrderRefundRequested.class,
+                            refund -> assertThat(refund.reason()).isEqualTo("ORDER_CANCELLED"));
+                    assertThat(receive(PAID_PROBE, 1_000)).isNull();
+                }
+            }
+        } finally {
+            pool.shutdown();
+        }
     }
 
     @Test

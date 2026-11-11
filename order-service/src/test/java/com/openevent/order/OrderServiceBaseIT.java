@@ -18,9 +18,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.awaitility.Awaitility;
 import java.time.Duration;
 import java.time.Instant;
@@ -108,15 +105,16 @@ class OrderServiceBaseIT {
         assertThat(admin.getQueueProperties("order-service.events.dlq")).isNotNull();
     }
 
+    /** Listener nhận được message: messageId được ghi vào processed_messages (BR-11). */
     @Test
-    @ExtendWith(OutputCaptureExtension.class)
-    void listenerReceivesEventPublishedToExchange(CapturedOutput output) {
+    void listenerReceivesEventPublishedToExchange() {
         PaymentSucceeded event = new PaymentSucceeded(UUID.randomUUID(), Instant.now(), UUID.randomUUID(), UUID.randomUUID(), java.math.BigDecimal.TEN, "ref");
 
         rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.PAYMENT_SUCCEEDED, event);
 
-        Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(() -> assertThat(output).contains("Nhận PaymentSucceeded: " + event.messageId()));
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> assertThat(jdbc.queryForObject(
+                "select count(*) from processed_messages where message_id = ?", Integer.class, event.messageId()))
+                .isEqualTo(1));
     }
 
     @Test
