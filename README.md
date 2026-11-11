@@ -16,7 +16,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
-| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé, API cho Payment, lịch sử, hủy và hết hạn đơn |
+| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé, API cho Payment, lịch sử, hủy và hết hạn đơn, kết quả thanh toán |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
 
 Một service "khung" đã có: schema Flyway theo requirement, kết nối database và RabbitMQ, đăng ký Eureka, bảo mật từ `common-lib`, Swagger, queue và listener rỗng, Feign client, test tích hợp. Phần còn lại là entity, nghiệp vụ và API thật. Tìm `TODO` trong service của bạn để bắt đầu.
@@ -287,3 +287,15 @@ Mã lỗi của `POST /api/orders`:
 - **Hủy và hết hạn cùng lúc:** đơn bị khóa dòng (`SELECT … FOR UPDATE`) khi đổi trạng thái, nên quota không bị trả hai lần. Job lấy đơn bằng `FOR UPDATE SKIP LOCKED`: nhiều instance chạy cùng lúc thì mỗi đơn chỉ được xử lý một lần. Test `parallelExpiryJobsHandleEachOrderOnce`: 4 job chạy song song trên 20 đơn quá hạn, đúng 20 đơn EXPIRED và 20 message.
 - **Lời gọi service khác (KB-1 bước 7):** lỗi mạng, timeout, 5xx được thử lại tối đa 3 lần (`openevent.order.remote.*`, Resilience4J retry), sau đó circuit breaker; lỗi 4xx không thử lại và không tính vào circuit breaker. Không giữ transaction DB trong lúc gọi mạng.
 - **Khi không giữ được vé:** đơn chuyển CANCELLED và trả lại quota. Ticket không phản hồi hoặc trả vé của sự kiện khác thì phát `OrderCancelled` (sau khi commit) để Ticket nhả phần có thể đã giữ; Ticket từ chối 4xx thì không cần vì Ticket giữ "tất cả hoặc không".
+- **Kết quả thanh toán (KB-4):**
+
+  | Message nhận | Trạng thái đơn | Order làm gì |
+  | --- | --- | --- |
+  | `PaymentSucceeded` | PENDING, trả trước `expiresAt` | PAID, phát `OrderPaid` → Ticket phát hành vé |
+  | `PaymentSucceeded` | PENDING, trả sau `expiresAt` | EXPIRED, trả quota, phát `OrderCancelled` và `OrderRefundRequested` (BR-13) |
+  | `PaymentSucceeded` | EXPIRED hoặc CANCELLED | Không phát vé, phát `OrderRefundRequested` → Payment chuyển REFUND_PENDING (BR-13) |
+  | `PaymentSucceeded` | PAID (giao dịch thứ hai) | Chỉ ghi log cảnh báo: Payment hoàn mọi giao dịch SUCCESS của đơn nên không yêu cầu hoàn ở đây |
+  | `PaymentFailed` | PENDING | CANCELLED, trả quota, phát `OrderCancelled` → Ticket nhả vé |
+  | `PaymentFailed` | Khác PENDING | Bỏ qua |
+
+  "Trả trước hạn" so `occurredAt` của Payment với `expiresAt`. Message trùng bị bỏ qua theo `messageId` (`processed_messages`, BR-11). Đơn được khóa dòng trước khi đổi trạng thái, nên tiền về đúng lúc người dùng hủy thì chỉ một bên thắng; test `paymentRacingCancelEndsInOneConsistentOutcome`. Mọi message phát sau khi commit.

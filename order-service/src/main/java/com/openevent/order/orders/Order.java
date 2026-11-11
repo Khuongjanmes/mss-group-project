@@ -113,6 +113,11 @@ public class Order {
         status = OrderStatus.EXPIRED;
     }
 
+    public void pay() {
+        requirePending();
+        status = OrderStatus.PAID;
+    }
+
     private void requirePending() {
         if (!isPending()) {
             throw new IllegalStateException("Đơn " + id + " không còn PENDING (" + status + ")");

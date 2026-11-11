@@ -10,27 +10,38 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.openevent.common.messaging.events.OrderCancelled;
+import com.openevent.common.messaging.events.OrderPaid;
+import com.openevent.common.messaging.events.OrderRefundRequested;
+import com.openevent.common.messaging.events.PaymentFailed;
+import com.openevent.common.messaging.events.PaymentSucceeded;
 import com.openevent.common.web.ApiException;
 import com.openevent.order.client.TicketClient.ReservationResponse;
+import com.openevent.order.messaging.ProcessedMessages;
 import com.openevent.order.orders.dto.OrderResponse;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Các thay đổi trạng thái đơn, mỗi thay đổi một transaction ngắn. Lời gọi Identity, Event, Ticket nằm ngoài các
- * transaction này để không giữ kết nối DB trong lúc chờ mạng ({@link OrderService}). Đơn rời PENDING vì hủy hoặc hết
- * hạn thì trả lại quota (BR-03) và phát {@code OrderCancelled} sau khi commit để Ticket nhả vé (KB-4 bước 5).
+ * transaction này để không giữ kết nối DB trong lúc chờ mạng ({@link OrderService}). Đơn rời PENDING vì hủy, hết hạn
+ * hoặc thanh toán thất bại thì trả lại quota (BR-03) và phát {@code OrderCancelled} để Ticket nhả vé (KB-4 bước 5).
+ * Mọi message phát sau khi commit ({@code OrderEventRelay}). Đổi trạng thái luôn khóa dòng đơn trước, nên hủy đơn, job
+ * hết hạn và kết quả thanh toán đến cùng lúc thì chỉ một bên thắng.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OrderStore {
 
     static final String USER_CANCELLED = "USER_CANCELLED";
     static final String ORDER_EXPIRED = "ORDER_EXPIRED";
+    static final String PAYMENT_FAILED = "PAYMENT_FAILED";
 
     private final OrderRepository orders;
     private final Quotas quotas;
     private final ApplicationEventPublisher publisher;
+    private final ProcessedMessages processed;
 
     /** BR-03 rồi tạo đơn PENDING; vượt giới hạn thì không tạo gì. */
     @Transactional
@@ -95,6 +106,60 @@ public class OrderStore {
             publishCancelled(order, ORDER_EXPIRED);
         }
         return due.size();
+    }
+
+    /**
+     * KB-4 bước 2: đơn PENDING được trả trước hạn thì chuyển PAID và phát {@code OrderPaid} để Ticket phát hành vé.
+     * BR-13: đơn đã EXPIRED, CANCELLED, hoặc được trả sau hạn, thì không phát vé mà yêu cầu Payment hoàn tiền.
+     */
+    @Transactional
+    public void paymentSucceeded(PaymentSucceeded payment) {
+        if (!processed.markNew(payment.messageId())) {
+            return;
+        }
+        Order order = orders.findLockedById(payment.orderId()).orElse(null);
+        if (order == null) {
+            log.warn("PaymentSucceeded {} cho đơn {} không tồn tại", payment.paymentId(), payment.orderId());
+            return;
+        }
+        Instant paidAt = payment.occurredAt() == null ? Instant.now() : payment.occurredAt();
+        if (order.isPending() && !paidAt.isAfter(order.getExpiresAt())) {
+            order.pay();
+            publisher.publishEvent(new OrderPaid(UUID.randomUUID(), Instant.now(), order.getId(), order.getUserId(),
+                    order.getEventId()));
+            return;
+        }
+        if (order.getStatus() == OrderStatus.PAID) {
+            // Payment hoàn tiền mọi giao dịch SUCCESS của đơn, nên yêu cầu hoàn ở đây sẽ hoàn cả giao dịch hợp lệ.
+            log.warn("Đơn {} đã PAID, giao dịch {} trả thêm lần nữa cần xử lý tay", order.getId(),
+                    payment.paymentId());
+            return;
+        }
+        if (order.isPending()) {
+            // Tiền về sau hạn nhưng job hết hạn chưa chạy tới: hết hạn ngay, như job sẽ làm.
+            order.expire();
+            giveBackQuota(order);
+            publishCancelled(order, ORDER_EXPIRED);
+        }
+        publisher.publishEvent(new OrderRefundRequested(UUID.randomUUID(), Instant.now(), order.getId(),
+                "ORDER_" + order.getStatus()));
+    }
+
+    /** KB-4 bước 5: thanh toán thất bại thì hủy đơn PENDING, trả quota và báo Ticket nhả vé. */
+    @Transactional
+    public void paymentFailed(PaymentFailed payment) {
+        if (!processed.markNew(payment.messageId())) {
+            return;
+        }
+        Order order = orders.findLockedById(payment.orderId()).orElse(null);
+        if (order == null || !order.isPending()) {
+            log.info("Bỏ qua PaymentFailed {} cho đơn {} ({})", payment.paymentId(), payment.orderId(),
+                    order == null ? "không tồn tại" : order.getStatus());
+            return;
+        }
+        order.cancel();
+        giveBackQuota(order);
+        publishCancelled(order, PAYMENT_FAILED);
     }
 
     private void giveBackQuota(Order order) {
