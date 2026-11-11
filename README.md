@@ -16,7 +16,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
-| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé, API cho Payment, lịch sử, hủy và hết hạn đơn, kết quả thanh toán |
+| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Hoàn thành |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
 
 Một service "khung" đã có: schema Flyway theo requirement, kết nối database và RabbitMQ, đăng ký Eureka, bảo mật từ `common-lib`, Swagger, queue và listener rỗng, Feign client, test tích hợp. Phần còn lại là entity, nghiệp vụ và API thật. Tìm `TODO` trong service của bạn để bắt đầu.
@@ -299,3 +299,4 @@ Mã lỗi của `POST /api/orders`:
   | `PaymentFailed` | Khác PENDING | Bỏ qua |
 
   "Trả trước hạn" so `occurredAt` của Payment với `expiresAt`. Message trùng bị bỏ qua theo `messageId` (`processed_messages`, BR-11). Đơn được khóa dòng trước khi đổi trạng thái, nên tiền về đúng lúc người dùng hủy thì chỉ một bên thắng; test `paymentRacingCancelEndsInOneConsistentOutcome`. Mọi message phát sau khi commit.
+- **Sự kiện bị hủy (KB-5):** nhận `EventCancelled` thì mọi đơn PENDING và PAID của sự kiện chuyển CANCELLED, trả lại quota; đơn PAID phát `OrderRefundRequested` (`EVENT_CANCELLED`) để Payment chuyển REFUND_PENDING (BR-10). Đơn EXPIRED, CANCELLED giữ nguyên. Không phát `OrderCancelled` vì Ticket tự hủy vé và nhả vé giữ khi nhận `EventCancelled`. Tiền về sau khi sự kiện bị hủy được hoàn như thanh toán trên đơn CANCELLED.
