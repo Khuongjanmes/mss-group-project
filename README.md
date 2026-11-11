@@ -16,7 +16,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
-| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Khung |
+| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé (`POST /api/orders`) |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
 
 Một service "khung" đã có: schema Flyway theo requirement, kết nối database và RabbitMQ, đăng ký Eureka, bảo mật từ `common-lib`, Swagger, queue và listener rỗng, Feign client, test tích hợp. Phần còn lại là entity, nghiệp vụ và API thật. Tìm `TODO` trong service của bạn để bắt đầu.
@@ -258,3 +258,28 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 - **Chống bán vượt (BR-01):** giữ, nhả, bán đều là một câu `UPDATE` có điều kiện; các cột số lượng `updatable = false` nên JPA không ghi đè. Test `hundredConcurrentOrdersNeverOversell`: 100 đơn cùng lúc vào 10 vé, đúng 10 đơn giữ được.
 - **Message:** nhận `OrderPaid` → phát hành vé, phát `TicketIssued`; `OrderCancelled` → nhả vé; `EventCancelled` → hủy vé chưa dùng, nhả vé đang giữ, phát `TicketsCancelled`. Message trùng bị bỏ qua theo `messageId`.
 - **Job:** mỗi phút nhả vé giữ quá hạn 10 phút cộng 2 phút chờ (`openevent.ticket.release-grace`), để Order hết hạn đơn trước.
+
+## API Order
+
+| Method | Đường dẫn | Quyền | Mô tả |
+| --- | --- | --- | --- |
+| POST | `/api/orders` | Đăng nhập | `{eventId, items:[{ticketTypeId, quantity}]}`: tạo đơn PENDING và giữ vé 10 phút qua Ticket (KB-1). Trả `201` kèm `id, status, totalAmount, expiresAt, items[{ticketTypeId, quantity, unitPrice}]` |
+
+Mã lỗi của `POST /api/orders`:
+
+| HTTP | `code` | Khi nào |
+| --- | --- | --- |
+| 400 | `DUPLICATE_TICKET_TYPE` | Một loại vé ghi hai lần |
+| 400 | `TICKET_EVENT_MISMATCH` | Loại vé không thuộc `eventId` đã chọn |
+| 403 | `ACCOUNT_LOCKED` | Tài khoản bị khóa (BR-12) |
+| 404 | `EVENT_NOT_FOUND` | Không có sự kiện |
+| 409 | `EVENT_NOT_ON_SALE` | Sự kiện không ở trạng thái PUBLISHED (BR-04) |
+| 409 | `QUOTA_EXCEEDED` | Vượt 5 vé cho một sự kiện, tính cả các đơn trước (BR-03) |
+| 409 | `SOLD_OUT`, `SALE_NOT_OPEN` | Ticket từ chối giữ vé; mã và thông điệp lấy nguyên từ Ticket |
+| 503 | `SERVICE_BUSY` | Identity, Event hoặc Ticket không phản hồi sau khi thử lại |
+
+- **Thứ tự (KB-1):** Identity (tài khoản còn hoạt động) → Event (PUBLISHED) → giới hạn 5 vé và tạo đơn PENDING → Ticket giữ vé với `orderId` của đơn → so `eventId` Ticket trả về với đơn → ghi đơn giá Ticket trả, tính `totalAmount`. Giá không nhận từ client.
+- **Giới hạn 5 vé (BR-03):** một câu `INSERT … ON CONFLICT DO UPDATE … WHERE quantity + n <= 5` trên `user_event_quotas`, nên request đồng thời không vượt. Test `concurrentOrdersNeverExceedFiveTicketsPerUser`: 10 đơn cùng lúc, đúng 5 đơn được tạo. Đơn bị hủy thì trả lại quota.
+- **Hạn đơn (BR-02):** 10 phút (`openevent.order.hold-for`), không muộn hơn `expiresAt` Ticket trả về, để đơn hết hạn trước khi Ticket tự nhả vé.
+- **Lời gọi service khác (KB-1 bước 7):** lỗi mạng, timeout, 5xx được thử lại tối đa 3 lần (`openevent.order.remote.*`, Resilience4J retry), sau đó circuit breaker; lỗi 4xx không thử lại và không tính vào circuit breaker. Không giữ transaction DB trong lúc gọi mạng.
+- **Khi không giữ được vé:** đơn chuyển CANCELLED và trả lại quota. Ticket không phản hồi hoặc trả vé của sự kiện khác thì phát `OrderCancelled` (sau khi commit) để Ticket nhả phần có thể đã giữ; Ticket từ chối 4xx thì không cần vì Ticket giữ "tất cả hoặc không".
