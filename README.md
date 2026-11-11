@@ -16,7 +16,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
-| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé (`POST /api/orders`) |
+| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé, API cho Payment |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
 
 Một service "khung" đã có: schema Flyway theo requirement, kết nối database và RabbitMQ, đăng ký Eureka, bảo mật từ `common-lib`, Swagger, queue và listener rỗng, Feign client, test tích hợp. Phần còn lại là entity, nghiệp vụ và API thật. Tìm `TODO` trong service của bạn để bắt đầu.
@@ -264,6 +264,7 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 | Method | Đường dẫn | Quyền | Mô tả |
 | --- | --- | --- | --- |
 | POST | `/api/orders` | Đăng nhập | `{eventId, items:[{ticketTypeId, quantity}]}`: tạo đơn PENDING và giữ vé 10 phút qua Ticket (KB-1). Trả `201` kèm `id, status, totalAmount, expiresAt, items[{ticketTypeId, quantity, unitPrice}]` |
+| GET | `/internal/orders/{id}` | Nội bộ | `id, userId, totalAmount, status, expiresAt` cho Payment (KB-2), khớp `OrderClient.OrderSummary`; Payment tự kiểm tra đơn của người gọi, còn PENDING, chưa hết hạn. Không có đơn thì 404 `ORDER_NOT_FOUND` |
 
 Mã lỗi của `POST /api/orders`:
 

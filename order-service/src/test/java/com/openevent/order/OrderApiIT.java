@@ -153,6 +153,16 @@ class OrderApiIT {
                 response.body().isBlank() ? json.createObjectNode() : json.readTree(response.body()));
     }
 
+    /** Gọi không kèm header người dùng, như Payment gọi qua Feign. */
+    private HttpResponse<String> getInternal(String path) throws Exception {
+        return http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Bản sao {@code OrderClient.OrderSummary} của payment-service: hợp đồng KB-2. */
+    record PaymentOrderSummary(UUID id, UUID userId, BigDecimal totalAmount, String status, Instant expiresAt) {
+    }
+
     private Integer quota(UUID user) {
         List<Integer> rows = jdbc.queryForList(
                 "select quantity from user_event_quotas where user_id = ? and event_id = ?", Integer.class, user,
@@ -264,6 +274,29 @@ class OrderApiIT {
         assertThat(cancelled).isNotNull();
         assertThat(cancelled.reason()).isEqualTo("TICKET_UNAVAILABLE");
         assertThat(quota(userId)).isZero();
+    }
+
+    @Test
+    void paymentReadsAmountStatusAndExpiryOfAnOrder() throws Exception {
+        Response created = post(userId, order(vip, 2));
+        String id = created.body().path("id").asString();
+
+        HttpResponse<String> response = getInternal("/internal/orders/" + id);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        PaymentOrderSummary summary = json.readValue(response.body(), PaymentOrderSummary.class);
+        assertThat(summary.id()).hasToString(id);
+        assertThat(summary.userId()).isEqualTo(userId);
+        assertThat(summary.totalAmount()).isEqualByComparingTo("2000000");
+        assertThat(summary.status()).isEqualTo("PENDING");
+        assertThat(summary.expiresAt()).isEqualTo(Instant.parse(created.body().path("expiresAt").asString()));
+    }
+
+    @Test
+    void unknownOrderIsNotFoundForPayment() throws Exception {
+        HttpResponse<String> response = getInternal("/internal/orders/" + UUID.randomUUID());
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(json.readTree(response.body()).path("code").asString()).isEqualTo("ORDER_NOT_FOUND");
     }
 
     @Test
