@@ -24,7 +24,7 @@ class OrderQueryServiceTest {
         UUID orderId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Instant expiresAt = Instant.now().plusSeconds(600);
-        Order order = Order.open(userId, UUID.randomUUID(), expiresAt);
+        Order order = Order.open(userId, UUID.randomUUID(), 2, expiresAt);
         when(orders.findById(orderId)).thenReturn(Optional.of(order));
 
         OrderSummaryResponse summary = service.summary(orderId);

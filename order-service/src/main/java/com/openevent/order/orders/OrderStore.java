@@ -35,7 +35,7 @@ public class OrderStore {
             throw new ApiException(HttpStatus.CONFLICT, "QUOTA_EXCEEDED",
                     "Mỗi tài khoản mua tối đa " + Quotas.MAX_PER_EVENT + " vé cho một sự kiện");
         }
-        return orders.save(Order.open(userId, eventId, expiresAt)).getId();
+        return orders.save(Order.open(userId, eventId, ticketCount, expiresAt)).getId();
     }
 
     /** Ticket đã giữ vé: ghi đơn giá và tổng tiền. */
@@ -54,13 +54,13 @@ public class OrderStore {
      * kiện) nên phát {@code OrderCancelled} sau khi commit để Ticket nhả vé (KB-1 bước 7, KB-4 bước 5).
      */
     @Transactional
-    public void abandon(UUID orderId, int ticketCount, String reason, boolean releaseTickets) {
+    public void abandon(UUID orderId, String reason, boolean releaseTickets) {
         Order order = require(orderId);
         if (!order.isPending()) {
             return;
         }
         order.cancel();
-        quotas.giveBack(order.getUserId(), order.getEventId(), ticketCount);
+        quotas.giveBack(order.getUserId(), order.getEventId(), order.getTicketCount());
         if (releaseTickets) {
             publisher.publishEvent(new OrderCancelled(UUID.randomUUID(), Instant.now(), orderId, reason));
         }
