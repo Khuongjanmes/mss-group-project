@@ -42,7 +42,7 @@ GitHub → **Issues → New issue** → chọn mẫu **Chức năng** (hoặc **
 | Assignees | Chính mình |
 | Labels | `type: feature` · `module: <service>` · `priority: <high/medium/low>` · thêm `bonus` nếu là mục nâng cao |
 | Milestone | Checkpoint mà việc này thuộc về: `CP1`–`CP4` (xem requirement.md mục 4.1) |
-| Projects | Board của nhóm, cột **To do** |
+| Projects | `OpenEvent Board`: issue tự vào cột **Backlog**; việc của checkpoint đang làm thì kéo sang **To do** |
 
 Ghi lại **số issue** (ví dụ `#21`). Số này dùng ở tên nhánh, commit và PR.
 
