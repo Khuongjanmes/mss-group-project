@@ -74,6 +74,8 @@ openevent:
   order:
     # BR-02: đơn PENDING giữ vé 10 phút; hạn đơn còn bị giới hạn bởi hạn giữ vé Ticket trả về.
     hold-for: PT10M
+    # BR-02: chu kỳ (ms) của job chuyển đơn PENDING quá hạn sang EXPIRED; phải ngắn hơn 2 phút chờ của Ticket.
+    expire-interval: 60000
     # KB-1 bước 7: thử lại lời gọi Identity, Event, Ticket khi lỗi mạng hoặc 5xx; 4xx không thử lại.
     remote:
       max-attempts: 3

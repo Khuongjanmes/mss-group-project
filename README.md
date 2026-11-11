@@ -16,7 +16,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
-| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé, API cho Payment |
+| [order-service/](order-service/) | 8084 | PostgreSQL `order_db` | TV4 @Khuongjanmes | Đang làm: đặt vé, API cho Payment, lịch sử, hủy và hết hạn đơn |
 | [common-lib/](common-lib/) | — | — | Cả nhóm | Định dạng lỗi, danh tính, sự kiện RabbitMQ |
 
 Một service "khung" đã có: schema Flyway theo requirement, kết nối database và RabbitMQ, đăng ký Eureka, bảo mật từ `common-lib`, Swagger, queue và listener rỗng, Feign client, test tích hợp. Phần còn lại là entity, nghiệp vụ và API thật. Tìm `TODO` trong service của bạn để bắt đầu.
@@ -264,6 +264,8 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 | Method | Đường dẫn | Quyền | Mô tả |
 | --- | --- | --- | --- |
 | POST | `/api/orders` | Đăng nhập | `{eventId, items:[{ticketTypeId, quantity}]}`: tạo đơn PENDING và giữ vé 10 phút qua Ticket (KB-1). Trả `201` kèm `id, status, totalAmount, expiresAt, items[{ticketTypeId, quantity, unitPrice}]` |
+| GET | `/api/orders/my?page&size` | Đăng nhập | Đơn của tôi, mới nhất trước, mọi trạng thái (PENDING, PAID, CANCELLED, EXPIRED). `size` 1–100, mặc định 20. Trả `{content, page, size, totalElements, totalPages}` |
+| PUT | `/api/orders/{id}/cancel` | Chủ đơn | Hủy đơn PENDING (BR-10): chuyển CANCELLED, trả lại quota, phát `OrderCancelled` để Ticket nhả vé. Đơn của người khác: 404 `ORDER_NOT_FOUND`; đơn không còn PENDING: 409 `ORDER_NOT_PENDING` |
 | GET | `/internal/orders/{id}` | Nội bộ | `id, userId, totalAmount, status, expiresAt` cho Payment (KB-2), khớp `OrderClient.OrderSummary`; Payment tự kiểm tra đơn của người gọi, còn PENDING, chưa hết hạn. Không có đơn thì 404 `ORDER_NOT_FOUND` |
 
 Mã lỗi của `POST /api/orders`:
@@ -281,6 +283,7 @@ Mã lỗi của `POST /api/orders`:
 
 - **Thứ tự (KB-1):** Identity (tài khoản còn hoạt động) → Event (PUBLISHED) → giới hạn 5 vé và tạo đơn PENDING → Ticket giữ vé với `orderId` của đơn → so `eventId` Ticket trả về với đơn → ghi đơn giá Ticket trả, tính `totalAmount`. Giá không nhận từ client.
 - **Giới hạn 5 vé (BR-03):** một câu `INSERT … ON CONFLICT DO UPDATE … WHERE quantity + n <= 5` trên `user_event_quotas`, nên request đồng thời không vượt. Test `concurrentOrdersNeverExceedFiveTicketsPerUser`: 10 đơn cùng lúc, đúng 5 đơn được tạo. Đơn bị hủy thì trả lại quota.
-- **Hạn đơn (BR-02):** 10 phút (`openevent.order.hold-for`), không muộn hơn `expiresAt` Ticket trả về, để đơn hết hạn trước khi Ticket tự nhả vé.
+- **Hạn đơn (BR-02):** 10 phút (`openevent.order.hold-for`), không muộn hơn `expiresAt` Ticket trả về. Job chạy mỗi phút (`openevent.order.expire-interval`) chuyển đơn PENDING quá hạn sang EXPIRED, trả lại quota, phát `OrderCancelled`. Ticket chỉ tự nhả vé sau hạn 2 phút, nên đơn luôn hết hạn trước.
+- **Hủy và hết hạn cùng lúc:** đơn bị khóa dòng (`SELECT … FOR UPDATE`) khi đổi trạng thái, nên quota không bị trả hai lần. Job lấy đơn bằng `FOR UPDATE SKIP LOCKED`: nhiều instance chạy cùng lúc thì mỗi đơn chỉ được xử lý một lần. Test `parallelExpiryJobsHandleEachOrderOnce`: 4 job chạy song song trên 20 đơn quá hạn, đúng 20 đơn EXPIRED và 20 message.
 - **Lời gọi service khác (KB-1 bước 7):** lỗi mạng, timeout, 5xx được thử lại tối đa 3 lần (`openevent.order.remote.*`, Resilience4J retry), sau đó circuit breaker; lỗi 4xx không thử lại và không tính vào circuit breaker. Không giữ transaction DB trong lúc gọi mạng.
 - **Khi không giữ được vé:** đơn chuyển CANCELLED và trả lại quota. Ticket không phản hồi hoặc trả vé của sự kiện khác thì phát `OrderCancelled` (sau khi commit) để Ticket nhả phần có thể đã giữ; Ticket từ chối 4xx thì không cần vì Ticket giữ "tất cả hoặc không".
