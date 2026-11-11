@@ -108,6 +108,11 @@ public class Order {
         status = OrderStatus.CANCELLED;
     }
 
+    public void expire() {
+        requirePending();
+        status = OrderStatus.EXPIRED;
+    }
+
     private void requirePending() {
         if (!isPending()) {
             throw new IllegalStateException("Đơn " + id + " không còn PENDING (" + status + ")");

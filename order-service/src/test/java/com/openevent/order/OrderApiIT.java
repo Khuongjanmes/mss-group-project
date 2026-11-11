@@ -49,6 +49,7 @@ import com.openevent.order.client.TicketClient;
 import com.openevent.order.client.TicketClient.ReservationRequest;
 import com.openevent.order.client.TicketClient.ReservationResponse;
 import com.openevent.order.client.TicketClient.ReservedItem;
+import com.openevent.order.orders.OrderStore;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -58,7 +59,8 @@ import tools.jackson.databind.json.JsonMapper;
  * 1.000.000đ cho mọi loại vé của {@link #eventId}.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "eureka.client.enabled=false", "openevent.order.remote.wait=0ms"})
+        "eureka.client.enabled=false", "openevent.order.remote.wait=0ms",
+        "openevent.order.expire-interval=3600000"})
 class OrderApiIT {
 
     @ServiceConnection
@@ -96,6 +98,9 @@ class OrderApiIT {
     @Autowired
     AmqpAdmin amqp;
 
+    @Autowired
+    OrderStore store;
+
     @MockitoBean
     IdentityClient identity;
 
@@ -119,7 +124,8 @@ class OrderApiIT {
                 "PUBLISHED", Instant.now().plusSeconds(86_400), Instant.now().plusSeconds(90_000)));
         when(tickets.reserve(any())).thenAnswer(call -> holdAll(call.getArgument(0), eventId));
 
-        Queue probe = new Queue(CANCELLED_PROBE, false, false, true);
+        // Không auto-delete: test đọc nhiều message liên tiếp, queue không được mất sau lần đọc đầu.
+        Queue probe = new Queue(CANCELLED_PROBE, false, false, false);
         amqp.declareQueue(probe);
         Binding binding = BindingBuilder.bind(probe).to(new TopicExchange(Messaging.EXCHANGE))
                 .with(Messaging.ORDER_CANCELLED);
@@ -147,6 +153,25 @@ class OrderApiIT {
 
     private Response get(UUID caller, String path) throws Exception {
         return send("GET", path, caller, null);
+    }
+
+    private Response cancel(UUID caller, String orderId) throws Exception {
+        return send("PUT", "/api/orders/" + orderId + "/cancel", caller, null);
+    }
+
+    /** Đưa hạn đơn về quá khứ thay vì chờ 10 phút. */
+    private void overdue(String orderId) {
+        jdbc.update("update orders set expires_at = now() - interval '1 second' where id = ?",
+                UUID.fromString(orderId));
+    }
+
+    private List<OrderCancelled> drainCancelled() {
+        List<OrderCancelled> received = new ArrayList<>();
+        for (OrderCancelled next = receiveCancelled(); next != null;
+                next = (OrderCancelled) rabbit.receiveAndConvert(CANCELLED_PROBE, 1_000)) {
+            received.add(next);
+        }
+        return received;
     }
 
     private Response send(String method, String path, UUID caller, Object body) throws Exception {
@@ -330,6 +355,93 @@ class OrderApiIT {
         assertThat(get(null, "/api/orders/my").status()).isEqualTo(401);
         assertThat(get(userId, "/api/orders/my?size=0").status()).isEqualTo(400);
         assertThat(get(userId, "/api/orders/my?size=101").status()).isEqualTo(400);
+    }
+
+    @Test
+    void ownerCancelsPendingOrderOnce() throws Exception {
+        String id = post(userId, order(vip, 2)).body().path("id").asString();
+
+        Response cancelled = cancel(userId, id);
+
+        assertThat(cancelled.status()).isEqualTo(200);
+        assertThat(cancelled.body().path("status").asString()).isEqualTo("CANCELLED");
+        assertThat(status(id)).isEqualTo("CANCELLED");
+        assertThat(quota(userId)).isZero();
+        OrderCancelled event = receiveCancelled();
+        assertThat(event).isNotNull();
+        assertThat(event.orderId()).hasToString(id);
+        assertThat(event.reason()).isEqualTo("USER_CANCELLED");
+
+        Response again = cancel(userId, id);
+        assertThat(again.status()).isEqualTo(409);
+        assertThat(again.code()).isEqualTo("ORDER_NOT_PENDING");
+        assertThat(quota(userId)).isZero();
+    }
+
+    @Test
+    void othersCannotCancelMyOrder() throws Exception {
+        String id = post(userId, order(vip, 1)).body().path("id").asString();
+
+        Response response = cancel(UUID.randomUUID(), id);
+
+        assertThat(response.status()).isEqualTo(404);
+        assertThat(response.code()).isEqualTo("ORDER_NOT_FOUND");
+        assertThat(status(id)).isEqualTo("PENDING");
+        assertThat(cancel(null, id).status()).isEqualTo(401);
+    }
+
+    @Test
+    void unpaidOrderExpiresAndCanNoLongerBeCancelled() throws Exception {
+        String overdueOrder = post(userId, order(vip, 2)).body().path("id").asString();
+        String freshOrder = post(userId, order(standard, 1)).body().path("id").asString();
+        overdue(overdueOrder);
+
+        assertThat(store.expireDue(Instant.now(), 200)).isEqualTo(1);
+
+        assertThat(status(overdueOrder)).isEqualTo("EXPIRED");
+        assertThat(status(freshOrder)).isEqualTo("PENDING");
+        assertThat(quota(userId)).isEqualTo(1);
+        OrderCancelled event = receiveCancelled();
+        assertThat(event).isNotNull();
+        assertThat(event.orderId()).hasToString(overdueOrder);
+        assertThat(event.reason()).isEqualTo("ORDER_EXPIRED");
+        assertThat(cancel(userId, overdueOrder).code()).isEqualTo("ORDER_NOT_PENDING");
+    }
+
+    @Test
+    void parallelExpiryJobsHandleEachOrderOnce() throws Exception {
+        List<String> ids = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            String id = post(UUID.randomUUID(), order(vip, 1)).body().path("id").asString();
+            overdue(id);
+            ids.add(id);
+        }
+
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        int expired = 0;
+        try {
+            List<Callable<Integer>> instances = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                instances.add(() -> {
+                    int total = 0;
+                    for (int batch = store.expireDue(Instant.now(), 3); batch > 0;
+                            batch = store.expireDue(Instant.now(), 3)) {
+                        total += batch;
+                    }
+                    return total;
+                });
+            }
+            for (Future<Integer> result : pool.invokeAll(instances)) {
+                expired += result.get();
+            }
+        } finally {
+            pool.shutdown();
+        }
+
+        assertThat(expired).isEqualTo(20);
+        assertThat(ids).allSatisfy(id -> assertThat(status(id)).isEqualTo("EXPIRED"));
+        assertThat(drainCancelled()).extracting(event -> event.orderId().toString())
+                .containsExactlyInAnyOrderElementsOf(ids);
     }
 
     @Test
