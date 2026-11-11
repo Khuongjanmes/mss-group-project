@@ -1,6 +1,7 @@
 package com.openevent.order.client;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,7 +21,11 @@ public interface TicketClient {
     record ReservedItem(UUID ticketTypeId, int quantity, BigDecimal unitPrice) {
     }
 
-    record ReservationResponse(UUID orderId, List<ReservedItem> items) {
+    /**
+     * {@code eventId}: sự kiện của các loại vé đã giữ; Ticket không kiểm tra nó khớp sự kiện của đơn, Order phải so.
+     * {@code expiresAt}: hạn giữ vé của Ticket; hạn đơn không được muộn hơn.
+     */
+    record ReservationResponse(UUID orderId, UUID eventId, Instant expiresAt, List<ReservedItem> items) {
     }
 
     /** KB-1: giữ vé tất cả hoặc không. Hết vé trả 409; gọi lại cùng orderId không giữ vé hai lần. */
