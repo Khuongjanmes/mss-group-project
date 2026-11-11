@@ -19,6 +19,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+
+import org.hibernate.annotations.BatchSize;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -50,6 +52,10 @@ public class Order {
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.PENDING;
 
+    /** Số vé đã trừ quota khi mở đơn (BR-03), trả lại khi đơn hủy hoặc hết hạn. */
+    @Column(nullable = false, updatable = false)
+    private int ticketCount;
+
     @Column(nullable = false)
     private Instant expiresAt;
 
@@ -57,24 +63,22 @@ public class Order {
     private Instant createdAt;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @JoinColumn(name = "order_id", nullable = false, updatable = false)
     @Getter(AccessLevel.NONE)
     private List<OrderItem> items = new ArrayList<>();
 
-    public static Order open(UUID userId, UUID eventId, Instant expiresAt) {
+    public static Order open(UUID userId, UUID eventId, int ticketCount, Instant expiresAt) {
         Order order = new Order();
         order.userId = userId;
         order.eventId = eventId;
+        order.ticketCount = ticketCount;
         order.expiresAt = expiresAt;
         return order;
     }
 
     public List<OrderItem> items() {
         return Collections.unmodifiableList(items);
-    }
-
-    public int ticketCount() {
-        return items.stream().mapToInt(OrderItem::getQuantity).sum();
     }
 
     /**
@@ -102,6 +106,11 @@ public class Order {
     public void cancel() {
         requirePending();
         status = OrderStatus.CANCELLED;
+    }
+
+    public void expire() {
+        requirePending();
+        status = OrderStatus.EXPIRED;
     }
 
     private void requirePending() {

@@ -69,16 +69,16 @@ public class OrderService {
                             .toList())));
         } catch (RemoteCalls.Rejected ex) {
             // Ticket giữ "tất cả hoặc không": từ chối thì chưa giữ vé nào, không cần báo Ticket nhả.
-            store.abandon(orderId, ticketCount, ex.code(), false);
+            store.abandon(orderId, ex.code(), false);
             throw new ApiException(HttpStatus.valueOf(ex.status()), ex.code(), ex.getMessage());
         } catch (RemoteCalls.Unavailable ex) {
             // Ticket có thể đã giữ vé trước khi timeout: hủy đơn và báo Ticket nhả (KB-1 bước 7).
-            store.abandon(orderId, ticketCount, "TICKET_UNAVAILABLE", true);
+            store.abandon(orderId, "TICKET_UNAVAILABLE", true);
             throw unavailable();
         }
         if (!request.eventId().equals(reservation.eventId())) {
             // Ticket chỉ kiểm tra thời gian mở bán, không kiểm tra loại vé thuộc sự kiện nào (BR-04).
-            store.abandon(orderId, ticketCount, "TICKET_EVENT_MISMATCH", true);
+            store.abandon(orderId, "TICKET_EVENT_MISMATCH", true);
             throw new ApiException(HttpStatus.BAD_REQUEST, "TICKET_EVENT_MISMATCH",
                     "Loại vé không thuộc sự kiện đã chọn");
         }

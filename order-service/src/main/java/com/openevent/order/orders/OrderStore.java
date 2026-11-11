@@ -17,12 +17,16 @@ import com.openevent.order.orders.dto.OrderResponse;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Các bước ghi DB của việc tạo đơn, mỗi bước một transaction ngắn. Lời gọi Identity, Event, Ticket nằm ngoài các
- * transaction này để không giữ kết nối DB trong lúc chờ mạng ({@link OrderService}).
+ * Các thay đổi trạng thái đơn, mỗi thay đổi một transaction ngắn. Lời gọi Identity, Event, Ticket nằm ngoài các
+ * transaction này để không giữ kết nối DB trong lúc chờ mạng ({@link OrderService}). Đơn rời PENDING vì hủy hoặc hết
+ * hạn thì trả lại quota (BR-03) và phát {@code OrderCancelled} sau khi commit để Ticket nhả vé (KB-4 bước 5).
  */
 @Component
 @RequiredArgsConstructor
 public class OrderStore {
+
+    static final String USER_CANCELLED = "USER_CANCELLED";
+    static final String ORDER_EXPIRED = "ORDER_EXPIRED";
 
     private final OrderRepository orders;
     private final Quotas quotas;
@@ -35,13 +39,13 @@ public class OrderStore {
             throw new ApiException(HttpStatus.CONFLICT, "QUOTA_EXCEEDED",
                     "Mỗi tài khoản mua tối đa " + Quotas.MAX_PER_EVENT + " vé cho một sự kiện");
         }
-        return orders.save(Order.open(userId, eventId, expiresAt)).getId();
+        return orders.save(Order.open(userId, eventId, ticketCount, expiresAt)).getId();
     }
 
     /** Ticket đã giữ vé: ghi đơn giá và tổng tiền. */
     @Transactional
     public OrderResponse reserved(UUID orderId, ReservationResponse reservation) {
-        Order order = require(orderId);
+        Order order = orders.findById(orderId).orElseThrow(OrderStore::notFound);
         List<OrderItem> items = reservation.items().stream()
                 .map(item -> Order.item(item.ticketTypeId(), item.quantity(), item.unitPrice()))
                 .toList();
@@ -51,23 +55,57 @@ public class OrderStore {
 
     /**
      * Không giữ được vé: hủy đơn, trả lại quota. {@code releaseTickets}: Ticket có thể đã giữ vé (lỗi mạng, sai sự
-     * kiện) nên phát {@code OrderCancelled} sau khi commit để Ticket nhả vé (KB-1 bước 7, KB-4 bước 5).
+     * kiện) nên báo Ticket nhả (KB-1 bước 7); Ticket từ chối 4xx thì chưa giữ gì.
      */
     @Transactional
-    public void abandon(UUID orderId, int ticketCount, String reason, boolean releaseTickets) {
-        Order order = require(orderId);
+    public void abandon(UUID orderId, String reason, boolean releaseTickets) {
+        Order order = orders.findLockedById(orderId).orElseThrow(OrderStore::notFound);
         if (!order.isPending()) {
             return;
         }
         order.cancel();
-        quotas.giveBack(order.getUserId(), order.getEventId(), ticketCount);
+        giveBackQuota(order);
         if (releaseTickets) {
-            publisher.publishEvent(new OrderCancelled(UUID.randomUUID(), Instant.now(), orderId, reason));
+            publishCancelled(order, reason);
         }
     }
 
-    private Order require(UUID orderId) {
-        return orders.findById(orderId).orElseThrow(() ->
-                new ApiException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Không tìm thấy đơn"));
+    /** BR-10: chỉ chủ đơn hủy được, và chỉ khi đơn còn PENDING. Đơn của người khác trả 404 như không tồn tại. */
+    @Transactional
+    public OrderResponse cancel(UUID userId, UUID orderId) {
+        Order order = orders.findLockedById(orderId).filter(found -> found.getUserId().equals(userId))
+                .orElseThrow(OrderStore::notFound);
+        if (!order.isPending()) {
+            throw new ApiException(HttpStatus.CONFLICT, "ORDER_NOT_PENDING",
+                    "Chỉ hủy được đơn đang chờ thanh toán (đơn đang " + order.getStatus() + ")");
+        }
+        order.cancel();
+        giveBackQuota(order);
+        publishCancelled(order, USER_CANCELLED);
+        return OrderResponse.from(order);
+    }
+
+    /** BR-02: chuyển tối đa {@code limit} đơn PENDING quá hạn sang EXPIRED; trả số đơn đã chuyển. */
+    @Transactional
+    public int expireDue(Instant now, int limit) {
+        List<Order> due = orders.lockExpired(now, limit);
+        for (Order order : due) {
+            order.expire();
+            giveBackQuota(order);
+            publishCancelled(order, ORDER_EXPIRED);
+        }
+        return due.size();
+    }
+
+    private void giveBackQuota(Order order) {
+        quotas.giveBack(order.getUserId(), order.getEventId(), order.getTicketCount());
+    }
+
+    private void publishCancelled(Order order, String reason) {
+        publisher.publishEvent(new OrderCancelled(UUID.randomUUID(), Instant.now(), order.getId(), reason));
+    }
+
+    private static ApiException notFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Không tìm thấy đơn");
     }
 }

@@ -99,7 +99,7 @@ class OrderServiceTest {
         assertThat(sent.getValue().items()).extracting(TicketClient.ReservationItem::ticketTypeId)
                 .containsExactly(vip, standard);
         verify(store).reserved(eq(orderId), eq(reservation(eventId)));
-        verify(store, never()).abandon(any(), anyInt(), anyString(), any(Boolean.class));
+        verify(store, never()).abandon(any(), anyString(), any(Boolean.class));
     }
 
     @Test
@@ -170,7 +170,7 @@ class OrderServiceTest {
                 .satisfies(ex -> assertApiError(ex, 409, "SOLD_OUT"))
                 .hasMessageContaining("VIP");
         verify(tickets, times(1)).reserve(any());
-        verify(store).abandon(orderId, 3, "SOLD_OUT", false);
+        verify(store).abandon(orderId, "SOLD_OUT", false);
         verify(store, never()).reserved(any(), any());
     }
 
@@ -181,7 +181,7 @@ class OrderServiceTest {
         assertThatThrownBy(() -> service.create(userId, request()))
                 .satisfies(ex -> assertApiError(ex, 503, "SERVICE_BUSY"));
         verify(tickets, times(3)).reserve(any());
-        verify(store).abandon(orderId, 3, "TICKET_UNAVAILABLE", true);
+        verify(store).abandon(orderId, "TICKET_UNAVAILABLE", true);
     }
 
     @Test
@@ -190,7 +190,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> service.create(userId, request()))
                 .satisfies(ex -> assertApiError(ex, 400, "TICKET_EVENT_MISMATCH"));
-        verify(store).abandon(orderId, 3, "TICKET_EVENT_MISMATCH", true);
+        verify(store).abandon(orderId, "TICKET_EVENT_MISMATCH", true);
         verify(store, never()).reserved(any(), any());
     }
 }
