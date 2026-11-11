@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.openevent.common.messaging.events.EventCancelled;
 import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.messaging.events.OrderPaid;
 import com.openevent.common.messaging.events.OrderRefundRequested;
@@ -37,6 +38,7 @@ public class OrderStore {
     static final String USER_CANCELLED = "USER_CANCELLED";
     static final String ORDER_EXPIRED = "ORDER_EXPIRED";
     static final String PAYMENT_FAILED = "PAYMENT_FAILED";
+    static final String EVENT_CANCELLED = "EVENT_CANCELLED";
 
     private final OrderRepository orders;
     private final Quotas quotas;
@@ -160,6 +162,32 @@ public class OrderStore {
         order.cancel();
         giveBackQuota(order);
         publishCancelled(order, PAYMENT_FAILED);
+    }
+
+    /**
+     * KB-5 bước 3: sự kiện bị hủy thì mọi đơn PENDING và PAID của sự kiện chuyển CANCELLED và trả lại quota; đơn đã
+     * PAID thì yêu cầu Payment hoàn tiền (BR-10). Không phát {@code OrderCancelled}: Ticket tự hủy vé và nhả vé giữ khi
+     * nhận {@code EventCancelled}. Trả số đơn đã hủy.
+     */
+    @Transactional
+    public int eventCancelled(EventCancelled event) {
+        if (!processed.markNew(event.messageId())) {
+            return 0;
+        }
+        List<Order> open = orders.lockOpenOfEvent(event.eventId());
+        for (Order order : open) {
+            boolean paid = order.getStatus() == OrderStatus.PAID;
+            order.cancelForEvent();
+            giveBackQuota(order);
+            if (paid) {
+                publisher.publishEvent(new OrderRefundRequested(UUID.randomUUID(), Instant.now(), order.getId(),
+                        EVENT_CANCELLED));
+            }
+        }
+        if (!open.isEmpty()) {
+            log.info("Sự kiện {} bị hủy: đã hủy {} đơn", event.eventId(), open.size());
+        }
+        return open.size();
     }
 
     private void giveBackQuota(Order order) {

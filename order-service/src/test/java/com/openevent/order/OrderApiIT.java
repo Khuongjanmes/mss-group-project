@@ -39,6 +39,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 
 import com.openevent.common.messaging.Messaging;
+import com.openevent.common.messaging.events.EventCancelled;
 import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.messaging.events.OrderPaid;
 import com.openevent.common.messaging.events.OrderRefundRequested;
@@ -547,6 +548,37 @@ class OrderApiIT {
         } finally {
             pool.shutdown();
         }
+    }
+
+    @Test
+    void cancelledEventCancelsItsOrdersAndRefundsPaidOnes() throws Exception {
+        String waiting = post(userId, order(vip, 1)).body().path("id").asString();
+        String paid = post(userId, order(standard, 1)).body().path("id").asString();
+        String expired = post(userId, order(UUID.randomUUID(), 1)).body().path("id").asString();
+        store.paymentSucceeded(new PaymentSucceeded(UUID.randomUUID(), Instant.now(), UUID.randomUUID(),
+                UUID.fromString(paid), PRICE, "TX-" + paid));
+        overdue(expired);
+        store.expireDue(Instant.now(), 200);
+        UUID otherEvent = UUID.randomUUID();
+        doAnswer(call -> holdAll(call.getArgument(0), otherEvent)).when(tickets).reserve(any());
+        String otherEventOrder = post(userId, Map.of("eventId", otherEvent,
+                "items", List.of(Map.of("ticketTypeId", vip, "quantity", 1)))).body().path("id").asString();
+        assertThat(quota(userId)).isEqualTo(2);
+
+        EventCancelled cancelled = new EventCancelled(UUID.randomUUID(), Instant.now(), eventId);
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.EVENT_CANCELLED, cancelled);
+        rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.EVENT_CANCELLED, cancelled);
+
+        assertThat(receive(REFUND_PROBE, 10_000)).isInstanceOfSatisfying(OrderRefundRequested.class, refund -> {
+            assertThat(refund.orderId()).hasToString(paid);
+            assertThat(refund.reason()).isEqualTo("EVENT_CANCELLED");
+        });
+        assertThat(receive(REFUND_PROBE, 2_000)).isNull();
+        assertThat(status(waiting)).isEqualTo("CANCELLED");
+        assertThat(status(paid)).isEqualTo("CANCELLED");
+        assertThat(status(expired)).isEqualTo("EXPIRED");
+        assertThat(status(otherEventOrder)).isEqualTo("PENDING");
+        assertThat(quota(userId)).isZero();
     }
 
     @Test

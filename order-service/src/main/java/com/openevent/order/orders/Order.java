@@ -118,6 +118,14 @@ public class Order {
         status = OrderStatus.PAID;
     }
 
+    /** KB-5, BR-10: sự kiện bị hủy thì cả đơn đã thanh toán cũng chuyển CANCELLED (và được hoàn tiền). */
+    public void cancelForEvent() {
+        if (status != OrderStatus.PENDING && status != OrderStatus.PAID) {
+            throw new IllegalStateException("Đơn " + id + " đã kết thúc (" + status + ")");
+        }
+        status = OrderStatus.CANCELLED;
+    }
+
     private void requirePending() {
         if (!isPending()) {
             throw new IllegalStateException("Đơn " + id + " không còn PENDING (" + status + ")");

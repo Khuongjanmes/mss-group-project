@@ -29,4 +29,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             SELECT * FROM orders WHERE status = 'PENDING' AND expires_at <= :now
             ORDER BY expires_at LIMIT :limit FOR UPDATE SKIP LOCKED""", nativeQuery = true)
     List<Order> lockExpired(@Param("now") Instant now, @Param("limit") int limit);
+
+    /** KB-5: các đơn còn hiệu lực (PENDING, PAID) của một sự kiện, khóa để không đổi trạng thái song song. */
+    @Query(value = """
+            SELECT * FROM orders WHERE event_id = :eventId AND status IN ('PENDING', 'PAID')
+            FOR UPDATE""", nativeQuery = true)
+    List<Order> lockOpenOfEvent(@Param("eventId") UUID eventId);
 }

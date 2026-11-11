@@ -22,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.openevent.common.messaging.events.EventCancelled;
 import com.openevent.common.messaging.events.OrderCancelled;
 import com.openevent.common.messaging.events.OrderPaid;
 import com.openevent.common.messaging.events.OrderRefundRequested;
@@ -234,5 +235,43 @@ class OrderStoreTest {
         store.paymentFailed(new PaymentFailed(UUID.randomUUID(), Instant.now(), UUID.randomUUID(), orderId, "x"));
 
         verify(publisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void cancelledEventCancelsOpenOrdersAndRefundsOnlyPaidOnes() {
+        Order waiting = Order.open(userId, eventId, 2, Instant.now().plusSeconds(600));
+        Order paid = Order.open(UUID.randomUUID(), eventId, 3, Instant.now().plusSeconds(600));
+        paid.pay();
+        ReflectionTestUtils.setField(paid, "id", orderId);
+        when(orders.lockOpenOfEvent(eventId)).thenReturn(List.of(waiting, paid));
+
+        assertThat(store.eventCancelled(new EventCancelled(UUID.randomUUID(), Instant.now(), eventId))).isEqualTo(2);
+
+        assertThat(waiting.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(paid.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(quotas).giveBack(userId, eventId, 2);
+        verify(quotas).giveBack(paid.getUserId(), eventId, 3);
+        assertThat(allPublished()).singleElement().isInstanceOfSatisfying(OrderRefundRequested.class, refund -> {
+            assertThat(refund.orderId()).isEqualTo(orderId);
+            assertThat(refund.reason()).isEqualTo("EVENT_CANCELLED");
+        });
+    }
+
+    @Test
+    void duplicateEventCancelledIsIgnored() {
+        when(processed.markNew(any())).thenReturn(false);
+
+        assertThat(store.eventCancelled(new EventCancelled(UUID.randomUUID(), Instant.now(), eventId))).isZero();
+
+        verify(orders, never()).lockOpenOfEvent(any());
+        verify(publisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void finishedOrdersCannotBeCancelledByTheEvent() {
+        Order expired = Order.open(userId, eventId, 1, Instant.now());
+        expired.expire();
+
+        assertThatThrownBy(expired::cancelForEvent).isInstanceOf(IllegalStateException.class);
     }
 }
