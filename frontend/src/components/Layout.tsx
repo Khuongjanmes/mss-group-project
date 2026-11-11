@@ -11,7 +11,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b bg-card">
-        <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+        <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
           <Link to="/" className="text-lg font-bold text-primary">
             OpenEvent
           </Link>

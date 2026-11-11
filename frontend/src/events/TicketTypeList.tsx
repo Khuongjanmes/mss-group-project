@@ -138,7 +138,7 @@ export function TicketTypeList({ eventId }: { eventId: string }) {
       </ul>
       {canBuy && types.some((type) => saleState(type) === 'onSale') && (
         <div className="space-y-2 border-t pt-3">
-          <div className="flex items-baseline justify-between">
+          <div className="flex items-baseline justify-between gap-3">
             <span className="text-sm text-muted-foreground">
               {ticketCount} vé · tối đa {MAX_TICKETS_PER_EVENT} vé mỗi sự kiện
             </span>
