@@ -69,3 +69,10 @@ resilience4j:
         # Lỗi 4xx (như 409 hết vé) là kết quả nghiệp vụ, không phải service hỏng.
         ignore-exceptions:
           - feign.FeignException$FeignClientException
+
+openevent:
+  order:
+    # KB-1 bước 7: thử lại lời gọi Identity, Event, Ticket khi lỗi mạng hoặc 5xx; 4xx không thử lại.
+    remote:
+      max-attempts: 3
+      wait: 200ms
