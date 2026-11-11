@@ -13,6 +13,7 @@ import EventsPage from './pages/EventsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import MockPaymentPage from './pages/MockPaymentPage';
+import MyOrdersPage from './pages/MyOrdersPage';
 import MyTicketsPage from './pages/MyTicketsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PaymentResultPage from './pages/PaymentResultPage';
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
       {
         element: <RequireRole role="USER" />,
         children: [
+          { path: 'orders', element: <MyOrdersPage /> },
           { path: 'tickets', element: <MyTicketsPage /> },
           { path: 'payments/result', element: <PaymentResultPage /> },
           { path: 'payments/:id/mock', element: <MockPaymentPage /> },

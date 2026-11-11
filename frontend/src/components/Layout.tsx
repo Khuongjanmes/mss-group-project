@@ -33,6 +33,9 @@ export default function Layout() {
               {!hasRole(session, 'ADMIN') && (
                 <>
                   <Button asChild variant="ghost" size="sm">
+                    <Link to="/orders">Đơn của tôi</Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm">
                     <Link to="/tickets">Vé của tôi</Link>
                   </Button>
                   <Button asChild variant="ghost" size="sm">
