@@ -11,6 +11,11 @@
   <artifactId>notification-service</artifactId>
   <name>notification-service</name>
 
+  <properties>
+    <zxing.version>3.5.3</zxing.version>
+    <greenmail.version>2.1.14</greenmail.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.openevent</groupId>
@@ -39,6 +44,12 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+    <dependency>
+      <!-- Sinh ảnh QR của mã vé để nhúng vào email (KB-4). -->
+      <groupId>com.google.zxing</groupId>
+      <artifactId>core</artifactId>
+      <version>${zxing.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springdoc</groupId>
@@ -71,6 +82,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-mongodb</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- Máy chủ SMTP chạy trong test, đọc lại email đã gửi. -->
+      <groupId>com.icegreen</groupId>
+      <artifactId>greenmail-junit5</artifactId>
+      <version>${greenmail.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

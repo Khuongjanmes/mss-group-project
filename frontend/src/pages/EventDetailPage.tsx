@@ -40,7 +40,7 @@ export default function EventDetailPage() {
         description="Sự kiện không tồn tại hoặc chưa được công bố."
         action={
           <Button asChild variant="outline">
-            <Link to="/">Về trang chủ</Link>
+            <Link to="/events">Xem sự kiện khác</Link>
           </Button>
         }
       />

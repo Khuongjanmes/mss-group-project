@@ -1,0 +1,19 @@
+# SITE_ADDRESS: tên miền công khai (ví dụ 13-229-10-20.sslip.io) để Caddy tự lấy chứng chỉ HTTPS từ Let's Encrypt.
+# Để trống thì chỉ phục vụ HTTP ở cổng 80 (chạy thử trên máy).
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# API đi qua Gateway; Gateway vẫn kiểm tra JWT và chặn /internal/**.
+	handle /api/* {
+		reverse_proxy api-gateway:8080
+	}
+
+	# SPA: file có thật thì trả file, còn lại trả index.html để React Router xử lý (/events/..., /orders).
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}
