@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { NotificationBell } from '@/notifications/NotificationBell';
 
 /** Link của người đã đăng nhập; admin không mua vé nên chỉ có trang quản trị. */
 function accountLinks(session: Session): { to: string; label: string }[] {
@@ -45,6 +46,8 @@ export default function Layout() {
           </NavLink>
           {session ? (
             <>
+              {/* Chuông hiện cả trên điện thoại; admin không mua vé nên không có thông báo. */}
+              {!hasRole(session, 'ADMIN') && <NotificationBell />}
               {/* Màn hình rộng: link nằm ngang. */}
               <div className="hidden items-center gap-4 sm:flex">
                 {links.map((link) => (
