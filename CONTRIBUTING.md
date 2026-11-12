@@ -42,7 +42,7 @@ GitHub → **Issues → New issue** → chọn mẫu **Chức năng** (hoặc **
 | Assignees | Chính mình |
 | Labels | `type: feature` · `module: <service>` · `priority: <high/medium/low>` · thêm `bonus` nếu là mục nâng cao |
 | Milestone | Checkpoint mà việc này thuộc về: `CP1`–`CP4` (xem requirement.md mục 4.1) |
-| Projects | Board của nhóm, cột **To do** |
+| Projects | `OpenEvent Board`: issue tự vào cột **Backlog**; việc của checkpoint đang làm thì kéo sang **To do** |
 
 Ghi lại **số issue** (ví dụ `#21`). Số này dùng ở tên nhánh, commit và PR.
 
@@ -303,7 +303,14 @@ Làm ở checkpoint nộp bài (ít nhất CP4). Nhóm trưởng thực hiện.
 - [ ] Repo không có `.env`, khóa API, `target/`, `node_modules/`: lệnh `git ls-files | grep -E "(^|/)\.env$|target/|node_modules/"` không ra dòng nào.
 - [ ] Đã có tag và GitHub Release `v1.0.0`.
 
-## Cấu hình repo (nhóm trưởng, quyền admin, làm một lần)
+## Cấu hình repo (người có quyền admin, làm một lần)
+
+Repo thuộc tài khoản **Khuongjanmes** (`Khuongjanmes/mss-group-project`), chuyển từ `YuiGuende` ngày 11/11/2026; Khuongjanmes có quyền admin, các thành viên khác quyền Write. Link cũ vẫn tự chuyển hướng, nhưng mỗi người nên trỏ `origin` về repo mới:
+
+```bash
+git remote set-url origin https://github.com/Khuongjanmes/mss-group-project.git
+git remote -v        # kiểm tra
+```
 
 **Settings → General**
 - *Default branch*: `develop`, để `Closes #n` tự đóng issue khi PR merge vào `develop`.

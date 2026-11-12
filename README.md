@@ -1,7 +1,7 @@
 # OpenEvent
 
-[![Backend CI](https://github.com/YuiGuende/mss-group-project/actions/workflows/backend-ci.yml/badge.svg?branch=develop)](https://github.com/YuiGuende/mss-group-project/actions/workflows/backend-ci.yml)
-[![Frontend CI](https://github.com/YuiGuende/mss-group-project/actions/workflows/frontend-ci.yml/badge.svg?branch=develop)](https://github.com/YuiGuende/mss-group-project/actions/workflows/frontend-ci.yml)
+[![Backend CI](https://github.com/Khuongjanmes/mss-group-project/actions/workflows/backend-ci.yml/badge.svg?branch=develop)](https://github.com/Khuongjanmes/mss-group-project/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/Khuongjanmes/mss-group-project/actions/workflows/frontend-ci.yml/badge.svg?branch=develop)](https://github.com/Khuongjanmes/mss-group-project/actions/workflows/frontend-ci.yml)
 
 Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu và thiết kế nằm trong [requirement.md](requirement.md).
 
