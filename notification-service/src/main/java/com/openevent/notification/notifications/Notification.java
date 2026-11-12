@@ -19,6 +19,8 @@ import lombok.NoArgsConstructor;
  */
 @Document("notifications")
 @CompoundIndex(name = "message_user", def = "{'messageId': 1, 'userId': 1}", unique = true)
+// Hộp thông báo: của một người, mới nhất trước; đếm chưa đọc dùng phần đầu của index.
+@CompoundIndex(name = "user_sent", def = "{'userId': 1, 'read': 1, 'sentAt': -1}")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Notification {
@@ -53,5 +55,9 @@ public class Notification {
         notification.channel = channel;
         notification.sentAt = sentAt;
         return notification;
+    }
+
+    public void markRead() {
+        this.read = true;
     }
 }

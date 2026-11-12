@@ -85,18 +85,18 @@ class NotificationServiceBaseIT {
     }
 
     @Test
-    void pingFollowsSecurityRules() throws Exception {
-        assertThat(get("/api/notifications/ping").statusCode()).isEqualTo(401);
+    void apiFollowsSecurityRules() throws Exception {
+        assertThat(get("/api/notifications/my").statusCode()).isEqualTo(401);
     }
 
     @Test
-    void pingReceivesIdentityFromGatewayHeaders() throws Exception {
+    void apiReceivesIdentityFromGatewayHeaders() throws Exception {
         String userId = UUID.randomUUID().toString();
 
-        HttpResponse<String> response = get("/api/notifications/ping", "X-User-Id", userId, "X-User-Roles", "USER");
+        HttpResponse<String> response = get("/api/notifications/my", "X-User-Id", userId, "X-User-Roles", "USER");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("notification-service", userId, "USER");
+        assertThat(response.body()).contains("\"unreadCount\":0", "\"content\":[]");
     }
 
     @Test
