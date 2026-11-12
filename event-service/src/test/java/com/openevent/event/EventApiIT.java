@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -461,6 +462,29 @@ class EventApiIT {
                 otherOrganizer).code()).isEqualTo("OWNER_CANNOT_LEAVE");
         assertThat(send("PUT", "/api/organizations/" + org, Map.of("name", "Đổi tên"), organizer).code())
                 .isEqualTo("NOT_ORGANIZATION_OWNER");
+    }
+
+    private List<String> checkInEventIds(Caller caller) {
+        return send("GET", "/api/events/check-in", null, caller).body().valueStream()
+                .map(event -> event.path("id").asString()).toList();
+    }
+
+    @Test
+    void checkInListShowsPublishedEventsOfHostStaffOwnerAndManager() {
+        String org = createOrganization(organizer);
+        invite(org, otherOrganizer, "MANAGER", organizer);
+        invite(org, member, "MEMBER", organizer);
+        Map<String, Object> body = futureEvent("Soát vé CLB", "Huế");
+        body.put("organizationId", org);
+        String published = publish(organizer, body);
+        String draft = createDraft(organizer, body);
+        send("POST", "/api/events/" + published + "/staff", Map.of("email", email(attendee)), organizer);
+
+        for (Caller caller : List.of(organizer, otherOrganizer, attendee)) {
+            assertThat(checkInEventIds(caller)).contains(published).doesNotContain(draft);
+        }
+        assertThat(checkInEventIds(member)).doesNotContain(published);
+        assertThat(checkInEventIds(outsider)).doesNotContain(published);
     }
 
     @Test

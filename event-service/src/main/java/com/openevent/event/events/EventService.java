@@ -1,5 +1,6 @@
 package com.openevent.event.events;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -67,6 +68,16 @@ public class EventService {
     public PageResponse<EventResponse> searchMine(UUID organizerId, EventStatus status, int page, int size) {
         return search(new EventSearch(null, null, null, null, null, status, organizerId, null), page, size,
                 newestFirst());
+    }
+
+    /**
+     * Trang check-in: sự kiện mình soát vé được, đã công bố hoặc vừa kết thúc trong ngày (COMPLETED vẫn check-in được
+     * tới hết ngày kết thúc, BR-09).
+     */
+    @Transactional(readOnly = true)
+    public List<EventResponse> checkInable(UUID userId) {
+        return events.findCheckInable(userId, List.of(EventStatus.PUBLISHED, EventStatus.COMPLETED),
+                Instant.now().minus(Duration.ofDays(1))).stream().map(EventResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
