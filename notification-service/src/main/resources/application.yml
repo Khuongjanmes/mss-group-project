@@ -59,6 +59,8 @@ spring:
         disable-time-limiter: true
 
 openevent:
+  # Địa chỉ SPA để chèn nút "Xem vé của tôi" vào email; trống thì email không có link.
+  frontend-url: ${FRONTEND_URL:}
   mail:
     # Trống thì dùng MAIL_USERNAME (Gmail chỉ cho gửi bằng địa chỉ của tài khoản đăng nhập).
     from: ${MAIL_FROM:}

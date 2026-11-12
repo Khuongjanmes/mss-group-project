@@ -114,8 +114,8 @@ class TicketIssuedNotificationIT {
         assertThat(email.getSubject()).isEqualTo("Vé của bạn: Hội thảo AI");
         List<Part> parts = leafParts(email);
         String html = (String) parts.stream().filter(this::isHtml).findFirst().orElseThrow().getContent();
-        assertThat(html).contains("Nguyễn An", "code-A", "code-B", "Hội trường A, 1 Lê Duẩn, Huế",
-                "cid:ticket-qr-0", "cid:ticket-qr-1");
+        assertThat(html).contains("Nguyễn An", "code-A", "code-B", "Hội trường A", "1 Lê Duẩn, Huế",
+                "Vé 1/2", "Vé 2/2", "cid:ticket-qr-0", "cid:ticket-qr-1");
         assertThat(parts.stream().filter(this::isPng)).hasSize(2);
 
         Notification stored = awaitStored(1).getFirst();

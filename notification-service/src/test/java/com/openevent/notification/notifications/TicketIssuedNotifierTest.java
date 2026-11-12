@@ -35,7 +35,8 @@ class TicketIssuedNotifierTest {
     private final IdentityClient identity = mock(IdentityClient.class);
     private final EventClient events = mock(EventClient.class);
     private final EmailSender email = mock(EmailSender.class);
-    private final TicketIssuedNotifier notifier = new TicketIssuedNotifier(notifications, identity, events, email);
+    private final TicketIssuedNotifier notifier = new TicketIssuedNotifier(notifications, identity, events, email,
+            "https://openevent.test/");
 
     private final UUID ownerId = UUID.randomUUID();
     private final UUID eventId = UUID.randomUUID();
@@ -66,7 +67,9 @@ class TicketIssuedNotifierTest {
         assertThat(images.getValue()).containsOnlyKeys("ticket-qr-0", "ticket-qr-1");
         assertThat(images.getValue().values()).allSatisfy(png -> assertThat(png).startsWith((byte) 0x89, (byte) 'P', (byte) 'N', (byte) 'G'));
         assertThat(html.getValue()).contains("cid:ticket-qr-0", "cid:ticket-qr-1", "code-A", "code-B",
-                "19:00 ngày 20/12/2026", "Hội trường A, 1 Lê Duẩn, Huế");
+                "Vé 1/2", "Vé 2/2", "Nguyễn An", "19:00 – 22:00, Chủ nhật, 20/12/2026", "Hội trường A",
+                "1 Lê Duẩn, Huế", message.orderId().toString().substring(0, 8).toUpperCase(),
+                "href=\"https://openevent.test/tickets\"", "href=\"https://openevent.test/events/" + eventId + "\"");
 
         Notification saved = savedNotification();
         assertThat(saved.getChannel()).isEqualTo(NotificationChannel.EMAIL);
@@ -74,7 +77,7 @@ class TicketIssuedNotifierTest {
         assertThat(saved.getUserId()).isEqualTo(ownerId);
         assertThat(saved.getMessageId()).isEqualTo(message.messageId());
         assertThat(saved.getTitle()).isEqualTo("Vé của bạn: Hội thảo AI");
-        assertThat(saved.getContent()).contains("2 vé", "Hội thảo AI");
+        assertThat(saved.getContent()).isEqualTo("2 vé · 19:00 – 22:00, Chủ nhật, 20/12/2026 · Hội trường A, 1 Lê Duẩn, Huế");
         assertThat(saved.isRead()).isFalse();
         assertThat(saved.getSentAt()).isNotNull();
     }
@@ -120,6 +123,24 @@ class TicketIssuedNotifierTest {
         ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
         verify(email).send(anyString(), anyString(), html.capture(), anyMap());
         assertThat(html.getValue()).contains("&lt;script&gt;").doesNotContain("<script>");
+    }
+
+    @Test
+    void withoutFrontendUrlEmailHasNoLinks() {
+        when(email.enabled()).thenReturn(true);
+        TicketIssuedNotifier noLinks = new TicketIssuedNotifier(notifications, identity, events, email, "");
+
+        noLinks.handle(message);
+
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(email).send(anyString(), anyString(), html.capture(), anyMap());
+        assertThat(html.getValue()).doesNotContain("href=", "Xem vé của tôi");
+    }
+
+    @Test
+    void eventOverMidnightShowsBothDays() {
+        assertThat(TicketEmailTemplate.when(Instant.parse("2026-12-31T15:00:00Z"), Instant.parse("2026-12-31T18:00:00Z")))
+                .isEqualTo("22:00, Thứ năm, 31/12/2026 – 01:00, Thứ sáu, 01/01/2027");
     }
 
     private Notification savedNotification() {
