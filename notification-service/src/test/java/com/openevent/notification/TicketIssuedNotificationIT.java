@@ -48,7 +48,10 @@ import jakarta.mail.internet.MimeMessage;
 /** KB-4 bước 4 trên RabbitMQ, MongoDB và máy chủ SMTP thật (GreenMail); Identity, Event giả lập bằng Mockito. */
 @SpringBootTest(properties = {"eureka.client.enabled=false", "spring.mail.host=localhost",
         "spring.mail.port=3025", "spring.mail.username=openevent@test.local", "spring.mail.password=secret",
-        "MAIL_STARTTLS=false"})
+        "MAIL_STARTTLS=false",
+        // Giữ số lần thử như cấu hình thật nhưng không chờ 80 giây trong test.
+        "spring.rabbitmq.listener.simple.retry.initial-interval=100ms",
+        "spring.rabbitmq.listener.simple.retry.multiplier=1"})
 class TicketIssuedNotificationIT {
 
     static final MongoDBContainer DB = new MongoDBContainer("mongo:7");

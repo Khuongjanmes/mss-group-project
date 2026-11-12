@@ -34,11 +34,16 @@ spring:
     password: ${RABBITMQ_PASSWORD:openevent}
     listener:
       simple:
-        # Message lỗi được thử lại 3 lần rồi chuyển vào dead-letter queue, không lặp vô hạn.
+        # Message lỗi được thử lại rồi chuyển vào dead-letter queue, không lặp vô hạn.
         default-requeue-rejected: false
         retry:
           enabled: true
-          max-retries: 2
+          # Gửi email phụ thuộc máy chủ mail bên ngoài: chờ 2, 6, 18, 54 giây giữa các lần (tổng khoảng 80 giây)
+          # để SMTP hoặc Identity lỗi ngắn không đẩy email vào dead-letter queue.
+          max-retries: 4
+          initial-interval: 2s
+          multiplier: 3
+          max-interval: 60s
   cloud:
     openfeign:
       circuitbreaker:
