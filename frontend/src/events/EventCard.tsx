@@ -4,7 +4,6 @@ import { Link } from 'react-router';
 
 import type { EventItem } from '@/api/events';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, formatLongDate, formatTime } from '@/lib/datetime';
 import { displayStatus } from '@/lib/eventStatus';
 import { cn } from '@/lib/utils';
@@ -108,23 +107,5 @@ export function EventCardGrid({ events, stale = false }: { events: EventItem[]; 
         </li>
       ))}
     </ul>
-  );
-}
-
-export function EventCardGridSkeleton({ count = 6 }: { count?: number }) {
-  return (
-    <div role="status" aria-label="Đang tải sự kiện" className={GRID_CLASS}>
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="overflow-hidden rounded-xl border bg-card shadow-sm">
-          <Skeleton className="aspect-video w-full rounded-none" />
-          <div className="space-y-3 p-4">
-            <Skeleton className="h-3 w-1/4" />
-            <Skeleton className="h-5 w-4/5" />
-            <Skeleton className="h-4 w-3/5" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }

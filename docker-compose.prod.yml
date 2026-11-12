@@ -1,0 +1,66 @@
+# Production trên EC2: ghi đè docker-compose.yml, dùng image đã build sẵn trên GHCR thay vì build trên máy chủ.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+# TAG (commit SHA) do workflow Deploy truyền vào; SITE_ADDRESS, mật khẩu, khóa... đặt trong .env trên máy chủ.
+# Chỉ Caddy (web) mở cổng ra Internet; Postgres, MongoDB, RabbitMQ, Eureka vẫn chỉ nghe 127.0.0.1 như file gốc.
+
+services:
+  # File gốc không đặt restart cho hạ tầng; trên máy chủ cần tự chạy lại sau khi tắt/bật EC2.
+  postgres:
+    restart: unless-stopped
+
+  mongodb:
+    restart: unless-stopped
+
+  rabbitmq:
+    restart: unless-stopped
+
+  eureka-server:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-eureka-server:${TAG:-latest}
+
+  api-gateway:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-api-gateway:${TAG:-latest}
+    # Gateway chỉ nhận request từ Caddy trong mạng Docker, không mở 8080 ra ngoài.
+    ports: !reset []
+
+  identity-service:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-identity-service:${TAG:-latest}
+
+  event-service:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-event-service:${TAG:-latest}
+
+  ticket-service:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-ticket-service:${TAG:-latest}
+
+  order-service:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-order-service:${TAG:-latest}
+
+  payment-service:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-payment-service:${TAG:-latest}
+
+  notification-service:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-notification-service:${TAG:-latest}
+
+  web:
+    image: ${IMAGE_PREFIX:-ghcr.io/khuongjanmes/openevent}-web:${TAG:-latest}
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      # Để trống thì Caddy chỉ phục vụ HTTP cổng 80 (chạy thử trên máy).
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # Giữ chứng chỉ HTTPS giữa các lần deploy, tránh xin lại và bị Let's Encrypt giới hạn.
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

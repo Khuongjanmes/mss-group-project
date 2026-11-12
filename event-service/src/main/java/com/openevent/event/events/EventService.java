@@ -1,5 +1,6 @@
 package com.openevent.event.events;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -54,12 +55,19 @@ public class EventService {
     /** Cho các thao tác gọi Identity hoặc Cloudinary: không giữ kết nối DB trong lúc chờ mạng. */
     private final TransactionTemplate tx;
 
-    /** Khách chỉ thấy sự kiện PUBLISHED, sắp diễn ra trước. */
+    /**
+     * Khách chỉ thấy sự kiện PUBLISHED, sắp diễn ra trước. Có {@code timeline} thì lọc theo tab của trang sự kiện;
+     * riêng "đã kết thúc" có thêm sự kiện COMPLETED.
+     */
     @Transactional(readOnly = true)
-    public PageResponse<EventResponse> searchPublished(EventSearch search, int page, int size) {
-        EventSearch published = new EventSearch(search.keyword(), search.category(), search.city(), search.from(),
-                search.to(), EventStatus.PUBLISHED, null, null);
-        return search(published, page, size, Sort.by(Sort.Order.asc("startTime"), Sort.Order.asc("id")));
+    public PageResponse<EventResponse> searchPublished(EventSearch search, EventTimeline timeline, int page, int size) {
+        EventSearch filters = new EventSearch(search.keyword(), search.category(), search.city(), search.from(),
+                search.to(), timeline == null ? EventStatus.PUBLISHED : null, null, null);
+        if (timeline == null) {
+            return search(filters, page, size, Sort.by(Sort.Order.asc("startTime"), Sort.Order.asc("id")));
+        }
+        return PageResponse.from(events.findAll(filters.toSpecification().and(timeline.at(Instant.now())),
+                PageRequest.of(page, size, timeline.sort())).map(EventResponse::from));
     }
 
     /** Sự kiện mình làm HOST. */
@@ -67,6 +75,16 @@ public class EventService {
     public PageResponse<EventResponse> searchMine(UUID organizerId, EventStatus status, int page, int size) {
         return search(new EventSearch(null, null, null, null, null, status, organizerId, null), page, size,
                 newestFirst());
+    }
+
+    /**
+     * Trang check-in: sự kiện mình soát vé được, đã công bố hoặc vừa kết thúc trong ngày (COMPLETED vẫn check-in được
+     * tới hết ngày kết thúc, BR-09).
+     */
+    @Transactional(readOnly = true)
+    public List<EventResponse> checkInable(UUID userId) {
+        return events.findCheckInable(userId, List.of(EventStatus.PUBLISHED, EventStatus.COMPLETED),
+                Instant.now().minus(Duration.ofDays(1))).stream().map(EventResponse::from).toList();
     }
 
     @Transactional(readOnly = true)

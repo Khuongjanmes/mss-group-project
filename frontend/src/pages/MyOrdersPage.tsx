@@ -1,10 +1,10 @@
-import { Clock } from 'lucide-react';
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, Clock, ImageIcon, MapPin, ReceiptText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 
 import { errorMessage } from '@/api/client';
-import { getEvent } from '@/api/events';
+import { type EventItem, getEvent } from '@/api/events';
 import {
   cancelOrder,
   isPayable,
@@ -18,7 +18,7 @@ import { formatMoney } from '@/api/payments';
 import { listTicketTypes } from '@/api/tickets';
 import type { PageResponse } from '@/api/types';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/feedback';
-import { ListPagination } from '@/components/common/navigation';
+import { PageHeader } from '@/components/common/layout';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,15 +31,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
-import { formatDateTime } from '@/lib/datetime';
+import { formatDateRange, formatDateTime } from '@/lib/datetime';
+import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
 
 /** Tên sự kiện và tên loại vé: Order chỉ lưu id, nên hỏi Event và Ticket theo từng sự kiện trong trang. */
 interface EventInfo {
-  title: string | null;
+  event: EventItem | null;
   ticketNames: Record<string, string>;
 }
 
@@ -85,88 +85,176 @@ export default function MyOrdersPage() {
     );
   }
 
-  if (error) return <ErrorState description={error} onRetry={() => setReloadKey((k) => k + 1)} />;
-  if (!orders) return <LoadingState lines={6} />;
-
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Đơn của tôi</h1>
-      {orders.totalElements === 0 ? (
-        <EmptyState
-          title="Bạn chưa có đơn nào"
-          description="Chọn vé ở trang sự kiện để đặt vé."
-          action={
-            <Button asChild>
-              <Link to="/events">Khám phá sự kiện</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <Card className="gap-0 py-0">
-          <ul className="divide-y">
+    <div className="mx-auto flex min-h-[calc(100dvh-6.5rem)] flex-col gap-4 lg:min-h-[calc(100dvh-8rem)]">
+      <PageHeader title="Đơn của tôi" description="Đơn đặt vé của bạn; đơn chờ thanh toán giữ vé trong 10 phút." />
+
+      <section
+        aria-label="Danh sách đơn"
+        className={cn('flex flex-1 flex-col', (error || orders?.totalElements === 0) && 'justify-center')}
+      >
+        {error ? (
+          <ErrorState description={error} onRetry={() => setReloadKey((k) => k + 1)} />
+        ) : !orders ? (
+          <LoadingState lines={4} />
+        ) : orders.totalElements === 0 ? (
+          <EmptyState
+            title="Bạn chưa có đơn nào"
+            description="Chọn vé ở trang sự kiện để đặt vé."
+            action={
+              <Button asChild variant="outline">
+                <Link to="/events">Xem danh sách sự kiện</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <ul className="space-y-3">
             {orders.content.map((order) => {
               const info = events[order.eventId];
+              const event = info?.event;
               const payable = isPayable(order, now);
               return (
-                <li key={order.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link to={`/events/${order.eventId}`} className="font-semibold hover:underline">
-                        {info?.title ?? 'Sự kiện'}
-                      </Link>
-                      <Badge variant={ORDER_STATUS_BADGE[order.status]}>{ORDER_STATUS_LABELS[order.status]}</Badge>
-                    </div>
-                    <ul className="text-sm text-muted-foreground">
-                      {order.items.map((item) => (
-                        <li key={item.ticketTypeId}>
-                          {item.quantity} × {info?.ticketNames[item.ticketTypeId] ?? 'Vé'} ·{' '}
-                          {formatMoney(item.unitPrice)}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-xs text-muted-foreground">
-                      Mã đơn <code>{order.id.slice(0, 8)}</code> · Đặt lúc {formatDateTime(order.createdAt)}
-                    </p>
-                    {order.status === 'PENDING' && (
-                      <p className="flex items-center gap-1 text-xs font-medium text-warning-foreground">
-                        <Clock className="size-3.5" />
-                        {payable
-                          ? `Giữ vé còn ${remaining(order.expiresAt, now)}`
-                          : 'Đã hết thời gian giữ vé, đơn sẽ chuyển sang Hết hạn'}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                    <p className="text-lg font-bold tabular-nums">{formatMoney(order.totalAmount)}</p>
-                    {payable && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={paying !== null}
-                          onClick={() => setCancelling(order)}
-                        >
-                          Hủy đơn
-                        </Button>
-                        <Button size="sm" disabled={paying !== null} onClick={() => void pay(order)}>
-                          {paying === order.id && <Spinner />}
-                          Thanh toán
-                        </Button>
+                <li
+                  key={order.id}
+                  className="group relative flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-sm transition focus-within:ring-[3px] focus-within:ring-ring/50 hover:-translate-y-0.5 hover:shadow-md motion-reduce:hover:translate-y-0 md:flex-row md:gap-5"
+                >
+                  <div className="relative aspect-2/1 w-full shrink-0 overflow-hidden rounded-lg bg-muted md:aspect-auto md:w-72">
+                    {event?.bannerUrl ? (
+                      <img
+                        src={event.bannerUrl}
+                        alt={event.title}
+                        className={cn('size-full object-cover', (order.status === 'CANCELLED' || order.status === 'EXPIRED') && 'grayscale')}
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center">
+                        <ImageIcon className="size-8 text-muted-foreground" aria-hidden />
                       </div>
                     )}
-                    {order.status === 'PAID' && (
-                      <Link to="/tickets" className="text-sm font-medium text-accent-foreground hover:underline">
-                        Xem vé
-                      </Link>
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="line-clamp-2 text-base font-semibold group-hover:text-accent-foreground">
+                        <Link
+                          to={`/events/${order.eventId}`}
+                          className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none"
+                        >
+                          {event?.title ?? 'Sự kiện'}
+                        </Link>
+                      </h2>
+                      <p className="shrink-0 text-lg font-bold tabular-nums">{formatMoney(order.totalAmount)}</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {event ? (
+                        <Badge variant="outline" size="label">
+                          {event.category.name}
+                        </Badge>
+                      ) : null}
+                      <Badge variant={ORDER_STATUS_BADGE[order.status]} size="label">
+                        {ORDER_STATUS_LABELS[order.status]}
+                      </Badge>
+                      {order.status === 'PENDING' && (
+                        <Badge variant={payable ? 'warning' : 'neutral'} size="label">
+                          <Clock aria-hidden />
+                          {payable ? `Giữ vé còn ${remaining(order.expiresAt, now)}` : 'Hết thời gian giữ vé'}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="space-y-1 text-[13px] text-muted-foreground">
+                      {event && (
+                        <>
+                          <p className="flex items-start gap-1.5">
+                            <CalendarDays className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                            {formatDateRange(event.startTime, event.endTime)}
+                          </p>
+                          <p className="flex items-start gap-1.5">
+                            <MapPin className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                            {event.venue.name} · {event.venue.address}, {event.venue.city}
+                          </p>
+                        </>
+                      )}
+                      <p className="flex items-start gap-1.5 font-medium text-foreground">
+                        <ReceiptText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                        {order.items
+                          .map((item) => `${info?.ticketNames[item.ticketTypeId] ?? 'Vé'} ×${item.quantity} · ${formatMoney(item.unitPrice)}`)
+                          .join(' · ')}
+                      </p>
+                    </div>
+
+                    {(payable || order.status === 'PAID') && (
+                      // Trên link phủ cả thẻ để bấm được.
+                      <div className="relative z-10 flex flex-wrap gap-2 pt-1">
+                        {payable ? (
+                          <>
+                            <Button
+                              className="h-11 flex-1 rounded-full md:h-9 md:flex-none"
+                              disabled={paying !== null}
+                              onClick={() => void pay(order)}
+                            >
+                              {paying === order.id && <Spinner />}
+                              Thanh toán
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="h-11 flex-1 rounded-full md:h-9 md:flex-none"
+                              disabled={paying !== null}
+                              onClick={() => setCancelling(order)}
+                            >
+                              Hủy đơn
+                            </Button>
+                          </>
+                        ) : (
+                          <Button asChild variant="outline" className="h-11 w-full rounded-full md:h-9 md:w-auto">
+                            <Link to="/tickets">Xem vé</Link>
+                          </Button>
+                        )}
+                      </div>
                     )}
+
+                    <div className="mt-auto flex items-center justify-between gap-3 border-t pt-2.5">
+                      <p className="truncate text-xs text-muted-foreground">
+                        Mã đơn <code>{order.id.slice(0, 8)}</code> · Đặt lúc {formatDateTime(order.createdAt)}
+                      </p>
+                      <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-accent-foreground">
+                        <span className="hidden md:inline">Xem sự kiện</span>
+                        <ArrowRight
+                          className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                          aria-hidden
+                        />
+                      </span>
+                    </div>
                   </div>
                 </li>
               );
             })}
           </ul>
-          <ListPagination meta={orders} onPageChange={setPage} unit="đơn" />
-        </Card>
-      )}
+        )}
+      </section>
+
+      {orders && orders.totalPages > 1 ? (
+        <nav className="flex items-center justify-between gap-4" aria-label="Phân trang">
+          <p className="text-sm text-muted-foreground">
+            Trang {orders.page + 1}/{orders.totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={orders.page === 0} onClick={() => setPage(orders.page - 1)}>
+              <ChevronLeft />
+              Trước
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={orders.page + 1 >= orders.totalPages}
+              onClick={() => setPage(orders.page + 1)}
+            >
+              Sau
+              <ChevronRight />
+            </Button>
+          </div>
+        </nav>
+      ) : null}
       {cancelling && (
         <CancelOrderDialog order={cancelling} onCancelled={replace} onClose={() => setCancelling(null)} />
       )}
@@ -238,7 +326,7 @@ async function loadEvents(orders: Order[]): Promise<Record<string, EventInfo>> {
       return [
         eventId,
         {
-          title: event.status === 'fulfilled' ? event.value.title : null,
+          event: event.status === 'fulfilled' ? event.value : null,
           ticketNames:
             types.status === 'fulfilled' ? Object.fromEntries(types.value.map((type) => [type.id, type.name])) : {},
         },

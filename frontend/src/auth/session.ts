@@ -68,7 +68,7 @@ export function hasRole(session: Session | null, role: Role): boolean {
 
 /** Trang đầu tiên sau khi đăng nhập. */
 export function homePathFor(session: Session): string {
-  return hasRole(session, 'ADMIN') ? '/admin' : '/';
+  return hasRole(session, 'ADMIN') ? '/admin' : '/events';
 }
 
 /** Chỉ chuyển tới đường dẫn nội bộ, tránh open redirect qua ?redirect=. */
