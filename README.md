@@ -12,7 +12,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [eureka-server/](eureka-server/) | 8761 | — | TV1 @YuiGuende | Hoàn thành |
 | [api-gateway/](api-gateway/) | 8080 | — | TV1 @YuiGuende | Hoàn thành |
 | [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 @YuiGuende | Hoàn thành |
-| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Email vé (#60), báo hủy sự kiện (#61); còn hộp thông báo |
+| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Hoàn thành: email vé (#60), báo hủy sự kiện (#61), hộp thông báo (#62) |
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
@@ -303,7 +303,15 @@ Mã lỗi của `POST /api/orders`:
 
 ## Notification
 
-Chưa có API REST (`GET /api/notifications/my` làm ở #62). Service nhận message từ RabbitMQ:
+| Method | Đường dẫn | Quyền | Mô tả |
+| --- | --- | --- | --- |
+| GET | `/api/notifications/my?page&size` | Đăng nhập | Thông báo của tôi, mới nhất trước. `size` 1–100, mặc định 20. Trả `{content, page, size, totalElements, totalPages, unreadCount}`; mỗi thông báo `id, type (TICKET_ISSUED/EVENT_CANCELLED), title, content, channel, read, sentAt` |
+| GET | `/api/notifications/my/unread-count` | Đăng nhập | `{unreadCount}` cho chuông trên thanh điều hướng (SPA hỏi mỗi 60 giây và khi quay lại tab) |
+| PATCH | `/api/notifications/{id}/read` | Người nhận | 204, gọi lại không lỗi. Thông báo của người khác: 404 `NOTIFICATION_NOT_FOUND` |
+
+SPA: chuông cạnh tài khoản (không hiện với Admin) với số chưa đọc và 5 thông báo mới nhất; trang `/notifications`. Bấm thông báo thì đánh dấu đã đọc và mở Vé của tôi (vé đã phát) hoặc Đơn của tôi (sự kiện bị hủy).
+
+Service nhận message từ RabbitMQ:
 
 | Message nhận | Notification làm gì |
 | --- | --- |
