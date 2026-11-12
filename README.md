@@ -195,6 +195,7 @@ Lưu ý cho SPA:
 | GET | `/api/events?keyword&category&city&from&to&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601 |
 | GET | `/api/events/{id}` | Công khai | Sự kiện chưa công bố chỉ người quản lý, STAFF và ADMIN xem được |
 | GET | `/api/events/my?status` | Đăng nhập, trừ ADMIN | Sự kiện mình làm HOST, mọi trạng thái |
+| GET | `/api/events/check-in` | Đăng nhập, trừ ADMIN | Sự kiện mình soát vé được (HOST, STAFF, OWNER/MANAGER của tổ chức), đã công bố hoặc vừa kết thúc trong 24 giờ, sớm nhất trước |
 | GET | `/api/events/admin?keyword&status` | ADMIN | Mọi sự kiện, ví dụ `status=PENDING_APPROVAL` để duyệt |
 | POST, PUT, DELETE | `/api/events`, `/api/events/{id}` | Người quản lý sự kiện | Tạo nháp, `organizationId` không bắt buộc; sửa, xóa khi DRAFT hoặc REJECTED |
 | PUT | `/api/events/{id}/submit` | Người quản lý sự kiện | DRAFT/REJECTED → PENDING_APPROVAL |
@@ -250,7 +251,7 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 | POST | `/api/ticket-types` | Người quản lý sự kiện | `{eventId, name, price, totalQuantity, saleStart, saleEnd}`; mở bán kết thúc trước khi sự kiện bắt đầu (BR-07) |
 | PUT, DELETE | `/api/ticket-types/{id}` | Người quản lý sự kiện | Sự kiện lấy từ loại vé trong DB. Không giảm tổng dưới đã bán cộng đang giữ (BR-06); chỉ xóa loại chưa từng được giữ |
 | GET | `/api/tickets/my` | Đăng nhập | Vé của tôi, mới nhất trước; `code` dùng làm QR |
-| POST | `/api/tickets/check-in` | Người quản lý sự kiện, STAFF | `{"code"}`: mỗi vé một lần, trong những ngày diễn ra (BR-09) |
+| POST | `/api/tickets/check-in` | Người quản lý sự kiện, STAFF | `{"code", "eventId"}`: mỗi vé một lần, trong những ngày diễn ra (BR-09). `eventId` (không bắt buộc) là sự kiện đang soát, vé sự kiện khác trả 409 `TICKET_NOT_IN_EVENT`. Trả họ tên, email người mua; quét lại trả 409 `ALREADY_CHECKED_IN` kèm giờ và người đã soát |
 | GET | `/api/tickets?eventId`, `/api/tickets/stats?eventId` | Người quản lý sự kiện | Người tham dự (họ tên, email từ Identity); đã bán, đang giữ, đã check-in theo loại vé |
 | POST | `/internal/reservations` | Nội bộ | `{orderId, items:[{ticketTypeId, quantity}]}`: giữ vé 10 phút, tất cả hoặc không; hết vé hoặc chưa mở bán trả 409; gọi lại cùng `orderId` trả phần đã giữ. Trả `unitPrice` để Order tính tiền |
 
