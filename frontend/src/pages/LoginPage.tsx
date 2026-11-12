@@ -58,7 +58,7 @@ export default function LoginPage() {
       <Decorations />
 
       <header className="flex items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-2 font-bold" aria-label="OpenEvent">
+        <Link to="/events" className="flex items-center gap-2 font-bold" aria-label="Sự kiện">
           <span className="flex size-9 items-center justify-center rounded-lg bg-primary-foreground text-primary sm:size-11">
             <CalendarDays className="size-5 sm:size-6" aria-hidden />
           </span>

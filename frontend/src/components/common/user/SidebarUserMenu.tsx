@@ -51,9 +51,9 @@ export function SidebarUserMenu({ user, onSignOut }: SidebarUserMenuProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/">
+              <Link to="/events">
                 <House />
-                Về trang chủ
+                Xem sự kiện
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

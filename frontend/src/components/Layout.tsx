@@ -40,7 +40,7 @@ export default function Layout() {
     <div className="flex min-h-screen flex-col">
       <header className="sticky -top-px z-40 border-b bg-card">
         <div className="container mx-auto flex h-14 max-w-6xl items-center gap-10 px-4 lg:h-16">
-          <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="OpenEvent">
+          <Link to="/events" className="flex shrink-0 items-center gap-2" aria-label="Sự kiện">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground lg:size-9">
               <CalendarDays className="size-4 lg:size-5" aria-hidden />
             </span>

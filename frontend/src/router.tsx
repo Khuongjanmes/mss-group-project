@@ -10,7 +10,6 @@ import Layout from './components/Layout';
 import EventManageDetailPage from './events/EventManageDetailPage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventsPage from './pages/EventsPage';
-import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import MockPaymentPage from './pages/MockPaymentPage';
 import MyOrdersPage from './pages/MyOrdersPage';
@@ -35,7 +34,8 @@ export const router = createBrowserRouter([
     path: '/',
     element: <Layout />,
     children: [
-      { index: true, element: <HomePage /> },
+      // Không có trang chủ riêng: vào thẳng danh sách sự kiện (như openevent).
+      { index: true, element: <Navigate to="/events" replace /> },
       { path: 'events', element: <EventsPage /> },
       { path: 'events/:id', element: <EventDetailPage /> },
       {
