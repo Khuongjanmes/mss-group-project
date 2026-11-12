@@ -29,12 +29,13 @@ import OrganizationsPage from './organizer/organizations/OrganizationsPage';
 // Trang công khai thêm vào children của Layout; trang quản trị thêm vào children của AdminLayout
 // kèm handle.crumb để có breadcrumb.
 export const router = createBrowserRouter([
+  // Đăng nhập toàn màn hình, không có header chung (theo openevent).
+  { path: '/login', element: <LoginPage /> },
   {
     path: '/',
     element: <Layout />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: 'login', element: <LoginPage /> },
       { path: 'events', element: <EventsPage /> },
       { path: 'events/:id', element: <EventDetailPage /> },
       {
