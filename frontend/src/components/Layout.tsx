@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutDashboard, LogOut, Menu } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, LogOut, Menu, ReceiptText } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router';
 
 import { signOut } from '@/api/auth';
@@ -26,7 +26,6 @@ function navFor(session: Session | null): NavItem[] {
   return [
     events,
     { title: 'Vé của tôi', to: '/tickets' },
-    { title: 'Đơn của tôi', to: '/orders' },
     { title: 'Quản lý sự kiện', to: '/organizer' },
   ];
 }
@@ -124,6 +123,14 @@ function AccountMenu({ session }: { session: Session }) {
           <span className="truncate text-xs text-muted-foreground">{user.email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {!admin && (
+          <DropdownMenuItem asChild>
+            <Link to="/orders">
+              <ReceiptText />
+              Đơn của tôi
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link to={admin ? '/admin' : '/organizer'}>
             <LayoutDashboard />
