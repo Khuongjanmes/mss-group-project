@@ -334,6 +334,10 @@ class EventApiIT {
         assertThat(summary.text("status")).isEqualTo("PUBLISHED");
         assertThat(summary.body().has("startTime")).isTrue();
         assertThat(summary.body().has("endTime")).isTrue();
+        assertThat(summary.text("title")).isEqualTo("Nội bộ");
+        assertThat(summary.text("venueName")).isEqualTo("Hội trường A");
+        assertThat(summary.text("venueAddress")).isEqualTo("1 Lê Duẩn");
+        assertThat(summary.text("venueCity")).isEqualTo("Huế");
         assertThat(send("GET", "/internal/events/" + UUID.randomUUID(), null, null).code()).isEqualTo("EVENT_NOT_FOUND");
     }
 
