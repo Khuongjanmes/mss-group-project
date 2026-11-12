@@ -17,7 +17,8 @@ import MyOrdersPage from './pages/MyOrdersPage';
 import MyTicketsPage from './pages/MyTicketsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PaymentResultPage from './pages/PaymentResultPage';
-import CheckInPage from './organizer/CheckInPage';
+import CheckInEventsPage from './organizer/check-in/CheckInEventsPage';
+import CheckInScanPage from './organizer/check-in/CheckInScanPage';
 import EventFormPage from './organizer/EventFormPage';
 import OrganizerEventsPage from './organizer/OrganizerEventsPage';
 import OrganizerLayout from './organizer/OrganizerLayout';
@@ -98,7 +99,14 @@ export const router = createBrowserRouter([
               { path: ':id', element: <OrganizationDetailPage />, handle: { crumb: 'Chi tiết tổ chức' } },
             ],
           },
-          { path: 'check-in', element: <CheckInPage />, handle: { crumb: 'Check-in' } },
+          {
+            path: 'check-in',
+            handle: { crumb: 'Check-in' },
+            children: [
+              { index: true, element: <CheckInEventsPage /> },
+              { path: ':eventId', element: <CheckInScanPage />, handle: { crumb: 'Soát vé' } },
+            ],
+          },
         ],
       },
     ],
