@@ -208,11 +208,16 @@ class TicketApiIT extends TicketIntegrationTest {
         assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff).code())
                 .isEqualTo("NOT_EVENT_MANAGER");
         fakeEvents.get(eventId).staff().add(staff.id());
-        Response checkedIn = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff);
+        assertThat(send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0), "eventId", UUID.randomUUID()),
+                staff).code()).isEqualTo("TICKET_NOT_IN_EVENT");
+        Response checkedIn = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0), "eventId", eventId),
+                staff);
         assertThat(checkedIn.text("status")).isEqualTo("CHECKED_IN");
+        assertThat(checkedIn.text("ownerEmail")).isEqualTo(buyer.id() + "@test.local");
         Response again = send("POST", "/api/tickets/check-in", Map.of("code", codes.get(0)), staff);
         assertThat(again.code()).isEqualTo("ALREADY_CHECKED_IN");
-        assertThat(again.text("message")).matches("Vé đã check-in lúc \\d{2}:\\d{2} \\d{2}/\\d{2}/\\d{4}");
+        assertThat(again.text("message"))
+                .matches("Vé đã check-in lúc \\d{2}:\\d{2} \\d{2}/\\d{2}/\\d{4} bởi Người " + staff.id().toString().substring(0, 4));
         assertThat(send("POST", "/api/tickets/check-in", Map.of("code", "khong-co"), staff).code())
                 .isEqualTo("TICKET_NOT_FOUND");
 
