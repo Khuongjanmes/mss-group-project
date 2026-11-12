@@ -109,6 +109,17 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 ./mvnw -pl order-service -am verify     # một service
 ```
 
+**Postman:** import [postman/OpenEvent.postman_collection.json](postman/OpenEvent.postman_collection.json), điền `adminPassword` (giá trị `BOOTSTRAP_ADMIN_PASSWORD`) ở tab *Variables*, ô *Current value*, rồi **Run collection**, bỏ chọn thư mục *Thủ công*. Collection tự tạo tài khoản, sự kiện, loại vé, đơn và chạy hết luồng đặt vé, thanh toán, check-in, hủy sự kiện, hoàn tiền (khoảng 100 request). Bước thanh toán dùng cổng giả lập, nên để trống `PAYOS_*` và `VNPAY_*` trong `.env`. Chạy bằng dòng lệnh:
+
+```bash
+npx newman run postman/OpenEvent.postman_collection.json --env-var adminPassword=<mật khẩu admin> \
+  --folder "0. Xác thực" --folder "1. Người dùng" --folder "2. Danh mục và địa điểm" --folder "3. Tổ chức" \
+  --folder "4. Sự kiện" --folder "5. Loại vé" --folder "6. Đặt vé và thanh toán" --folder "7. Check-in" \
+  --folder "8. Hủy sự kiện" --folder "9. Dọn dẹp tài khoản"
+```
+
+API mới thì thêm request vào collection (sửa bằng Postman rồi *Export* v2.1 đè lên file).
+
 ## Quy trình làm việc trên GitHub
 
 Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review → merge**. Không push thẳng `main` hay `develop`. Hướng dẫn từng bước, lệnh, checklist, release và cấu hình repo: [CONTRIBUTING.md](CONTRIBUTING.md). Người phụ trách từng service: bảng [Cấu trúc và phân công](#cấu-trúc-và-phân-công).
