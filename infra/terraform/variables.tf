@@ -131,7 +131,7 @@ variable "mail_from" {
   default = ""
 }
 
-# ---- Mật khẩu dữ liệu: sinh bằng  openssl rand -hex 16  (chỉ chữ thường và số, hợp lệ với cả RDS, Amazon MQ, DocumentDB) ----
+# ---- Mật khẩu dữ liệu: sinh bằng  openssl rand -hex 16  (chỉ chữ thường và số, hợp lệ với cả RDS, Amazon MQ, MongoDB) ----
 
 variable "db_password" {
   description = "Mật khẩu master của RDS PostgreSQL"
@@ -155,13 +155,13 @@ variable "mq_password" {
   }
 }
 
-variable "docdb_password" {
-  description = "Mật khẩu master của DocumentDB (nằm trong MONGODB_URI)"
+variable "mongo_password" {
+  description = "Mật khẩu root của MongoDB (nằm trong MONGODB_URI)"
   type        = string
   sensitive   = true
 
   validation {
-    condition     = can(regex("^[A-Za-z0-9]{16,64}$", var.docdb_password))
+    condition     = can(regex("^[A-Za-z0-9]{16,64}$", var.mongo_password))
     error_message = "16-64 ký tự chữ và số."
   }
 }

@@ -1,4 +1,4 @@
-# Hạ tầng production của OpenEvent trên AWS: ECS Fargate + RDS + Amazon MQ + DocumentDB + ALB + CloudFront.
+# Hạ tầng production của OpenEvent trên AWS: ECS Fargate + RDS + Amazon MQ + MongoDB (ECS + EFS) + ALB + CloudFront.
 # Sơ đồ và cách chạy: README.md cùng thư mục.
 
 terraform {

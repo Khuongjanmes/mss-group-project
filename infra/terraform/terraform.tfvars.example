@@ -6,7 +6,7 @@ services_enabled = false
 # Mật khẩu dữ liệu: openssl rand -hex 16
 db_password    = ""
 mq_password    = ""
-docdb_password = ""
+mongo_password = ""
 
 # openssl rand -base64 48
 jwt_secret = ""

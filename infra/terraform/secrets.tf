@@ -7,6 +7,7 @@ locals {
     DB_PASSWORD              = var.db_password
     RABBITMQ_PASSWORD        = var.mq_password
     MONGODB_URI              = local.mongodb_uri
+    MONGO_PASSWORD           = var.mongo_password
     BOOTSTRAP_ADMIN_PASSWORD = var.bootstrap_admin_password
     CLOUDINARY_API_KEY       = var.cloudinary_api_key
     CLOUDINARY_API_SECRET    = var.cloudinary_api_secret

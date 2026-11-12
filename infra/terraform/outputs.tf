@@ -20,10 +20,6 @@ output "rabbitmq_host" {
   value = local.mq_host
 }
 
-output "docdb_endpoint" {
-  value = aws_docdb_cluster.main.endpoint
-}
-
 # Dùng cho scripts/create-databases.sh (aws ecs run-task).
 output "db_init_task_definition" {
   value = aws_ecs_task_definition.db_init.arn

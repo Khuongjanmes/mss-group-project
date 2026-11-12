@@ -3,7 +3,7 @@
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
-  enable_dns_hostnames = true # cần cho Cloud Map (eureka.openevent.local) và endpoint RDS/MQ/DocumentDB
+  enable_dns_hostnames = true # cần cho Cloud Map (eureka.openevent.local) và endpoint RDS/MQ, mongodb.openevent.local
 
   tags = { Name = local.name }
 }
@@ -144,7 +144,7 @@ resource "aws_security_group" "tasks" {
 
 resource "aws_security_group" "data" {
   name        = "${local.name}-data"
-  description = "RDS, Amazon MQ, DocumentDB: chi nhan tu ECS tasks"
+  description = "RDS, Amazon MQ: chi nhan tu ECS tasks"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -163,13 +163,6 @@ resource "aws_security_group" "data" {
     security_groups = [aws_security_group.tasks.id]
   }
 
-  ingress {
-    description     = "DocumentDB"
-    from_port       = 27017
-    to_port         = 27017
-    protocol        = "tcp"
-    security_groups = [aws_security_group.tasks.id]
-  }
 
   egress {
     from_port   = 0
