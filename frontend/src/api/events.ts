@@ -37,12 +37,16 @@ export interface EventItem {
   createdAt: string
 }
 
+/** Tab của trang sự kiện; "đã kết thúc" gồm cả sự kiện COMPLETED. */
+export type EventTimeline = 'UPCOMING' | 'ONGOING' | 'ENDED'
+
 export interface EventSearchParams {
   keyword?: string
   category?: string
   city?: string
   from?: string
   to?: string
+  timeline?: EventTimeline
   page?: number
   size?: number
 }
