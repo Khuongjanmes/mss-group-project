@@ -95,6 +95,11 @@ export async function searchMyEvents(params: { status?: EventStatus; page?: numb
   return (await api.get<PageResponse<EventItem>>('/api/events/my', { params })).data
 }
 
+/** Sự kiện mình soát vé được (HOST, STAFF, OWNER/MANAGER), đã công bố hoặc vừa kết thúc, sớm nhất trước. */
+export async function listCheckInEvents(): Promise<EventItem[]> {
+  return (await api.get<EventItem[]>('/api/events/check-in')).data
+}
+
 export async function getEvent(id: string): Promise<EventItem> {
   return (await api.get<EventItem>(`/api/events/${id}`)).data
 }

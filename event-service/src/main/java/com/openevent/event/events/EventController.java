@@ -59,6 +59,12 @@ public class EventController {
         return eventService.searchPublished(new EventSearch(keyword, category, city, from, to, null, null, null), page, size);
     }
 
+    @GetMapping("/check-in")
+    @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
+    public List<EventResponse> checkInable(@AuthenticationPrincipal AuthenticatedUser caller) {
+        return eventService.checkInable(caller.id());
+    }
+
     @GetMapping("/my")
     @PreAuthorize("isAuthenticated() and !hasRole('ADMIN')")
     public PageResponse<EventResponse> mine(@AuthenticationPrincipal AuthenticatedUser caller,

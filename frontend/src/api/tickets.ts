@@ -114,6 +114,19 @@ export async function myTickets(): Promise<Ticket[]> {
 }
 
 /** Người quản lý sự kiện hoặc STAFF. */
-export async function checkInTicket(code: string): Promise<Ticket> {
-  return (await api.post<Ticket>('/api/tickets/check-in', { code })).data
+/** Kết quả soát vé: họ tên, email người mua để đối chiếu (trống nếu Identity lỗi). */
+export interface CheckInResult {
+  ticketId: string
+  code: string
+  status: TicketStatus
+  checkedInAt: string
+  ticketTypeName: string | null
+  eventId: string
+  ownerName: string | null
+  ownerEmail: string | null
+}
+
+/** BR-09: vé của sự kiện khác `eventId` bị từ chối (`TICKET_NOT_IN_EVENT`). */
+export async function checkInTicket(eventId: string, code: string): Promise<CheckInResult> {
+  return (await api.post<CheckInResult>('/api/tickets/check-in', { eventId, code })).data
 }

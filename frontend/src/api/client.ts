@@ -35,6 +35,11 @@ export function errorMessage(error: unknown): string {
   return 'Không kết nối được máy chủ';
 }
 
+/** Mã lỗi nghiệp vụ (`SOLD_OUT`, `ALREADY_CHECKED_IN`...), không có khi không tới được máy chủ. */
+export function errorCode(error: unknown): string | undefined {
+  return axios.isAxiosError<ApiError>(error) ? error.response?.data?.code : undefined;
+}
+
 /** Lỗi theo từng trường khi server trả VALIDATION_FAILED. */
 export function fieldErrors(error: unknown): Record<string, string> {
   return axios.isAxiosError<ApiError>(error) ? (error.response?.data?.fieldErrors ?? {}) : {};

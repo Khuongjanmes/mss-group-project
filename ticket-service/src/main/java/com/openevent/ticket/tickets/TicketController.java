@@ -15,6 +15,7 @@ import com.openevent.common.security.AuthenticatedUser;
 import com.openevent.common.web.PageResponse;
 import com.openevent.ticket.tickets.dto.AttendeeResponse;
 import com.openevent.ticket.tickets.dto.CheckInRequest;
+import com.openevent.ticket.tickets.dto.CheckInResponse;
 import com.openevent.ticket.tickets.dto.TicketResponse;
 import com.openevent.ticket.tickettypes.TicketTypeService;
 import com.openevent.ticket.tickettypes.dto.TicketTypeStats;
@@ -40,9 +41,9 @@ public class TicketController {
 
     /** Người quản lý sự kiện hoặc STAFF. */
     @PostMapping("/check-in")
-    public TicketResponse checkIn(@AuthenticationPrincipal AuthenticatedUser caller,
+    public CheckInResponse checkIn(@AuthenticationPrincipal AuthenticatedUser caller,
             @Valid @RequestBody CheckInRequest request) {
-        return tickets.checkIn(caller.id(), request.code());
+        return tickets.checkIn(caller.id(), request.eventId(), request.code());
     }
 
     /** Người quản lý sự kiện: danh sách người tham dự. */
