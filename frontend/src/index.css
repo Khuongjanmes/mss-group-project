@@ -1,0 +1,178 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource/be-vietnam-pro/400.css';
+@import '@fontsource/be-vietnam-pro/500.css';
+@import '@fontsource/be-vietnam-pro/600.css';
+@import '@fontsource/be-vietnam-pro/700.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Bảng màu lấy từ repo openevent. Component chỉ dùng tên token (bg-primary, text-muted-foreground, bg-success/12…),
+ * không dùng mã màu hay màu thô của Tailwind (red-100, amber-700…).
+ * - Chữ trắng trên primary chỉ đạt 3:1: chữ trên nền cam phải font-semibold, ≥ 14px.
+ *   Chữ cam nhỏ trên nền sáng dùng text-accent-foreground thay cho text-primary.
+ * - success / info là màu chữ, nền đi kèm là chính nó ở 12% (bg-success/12 text-success).
+ *   warning là nền đặc, chữ dùng warning-foreground.
+ * - Bo góc: nút, ô nhập rounded-md; thẻ, khung rounded-xl; badge rounded-full.
+ */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.002 265);
+  --foreground: oklch(0.233 0.036 285.6);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.233 0.036 285.6);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.233 0.036 285.6);
+  /* Cam thương hiệu, là màu ấm duy nhất trên nền lạnh trung tính. */
+  --primary: oklch(0.691 0.18 45.9);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.965 0.003 265);
+  --secondary-foreground: oklch(0.233 0.036 285.6);
+  --muted: oklch(0.965 0.003 265);
+  --muted-foreground: oklch(0.544 0.025 285.5);
+  --accent: oklch(0.951 0.027 60.4);
+  --accent-foreground: oklch(0.546 0.158 42.5);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0.005 265);
+  --border-strong: oklch(0.86 0.007 265);
+  --input: oklch(0.922 0.005 265);
+  /* Viền focus đặc (5:1), luôn dùng 100%, không /50. */
+  --ring: var(--accent-foreground);
+  --surface-alt: oklch(0.965 0.003 265);
+  --footer: oklch(0.967 0.003 264.542);
+  --footer-foreground: oklch(0.446 0.03 256.802);
+  --live: oklch(0.608 0.209 27);
+  --live-foreground: oklch(1 0 0);
+  --success: oklch(0.52 0.13 150);
+  --info: oklch(0.52 0.14 255);
+  --warning: oklch(0.855 0.155 82);
+  --warning-foreground: oklch(0.36 0.08 60);
+  /* Badge viền (Rounded, Outline): màu viền và màu chữ. */
+  --badge-blue-border: #60a5fa;
+  --badge-blue-foreground: #2563eb;
+  --badge-purple-border: #c084fc;
+  --badge-purple-foreground: #9333ea;
+  --badge-red-border: #fca5a5;
+  --badge-red-foreground: #dc2626;
+  --badge-green-border: #4ade80;
+  --badge-green-foreground: #16a34a;
+  --badge-yellow-border: #fb923c;
+  --badge-yellow-foreground: #ca8a04;
+  --badge-grey-border: #9ca3af;
+  --badge-grey-foreground: #4b5563;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+.dark {
+  --footer: oklch(0.278 0.033 256.848);
+  --footer-foreground: oklch(0.872 0.01 258.338);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.75 0.15 150);
+  --warning: oklch(0.825 0.14 82);
+  --warning-foreground: oklch(0.29 0.06 60);
+  --info: oklch(0.72 0.13 250);
+  --border: oklch(1 0 0 / 10%);
+  --border-strong: oklch(1 0 0 / 20%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@theme inline {
+  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-alt: var(--surface-alt);
+  --color-footer: var(--footer);
+  --color-footer-foreground: var(--footer-foreground);
+  --color-live: var(--live);
+  --color-live-foreground: var(--live-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-badge-blue-border: var(--badge-blue-border);
+  --color-badge-blue-foreground: var(--badge-blue-foreground);
+  --color-badge-purple-border: var(--badge-purple-border);
+  --color-badge-purple-foreground: var(--badge-purple-foreground);
+  --color-badge-red-border: var(--badge-red-border);
+  --color-badge-red-foreground: var(--badge-red-foreground);
+  --color-badge-green-border: var(--badge-green-border);
+  --color-badge-green-foreground: var(--badge-green-foreground);
+  --color-badge-yellow-border: var(--badge-yellow-border);
+  --color-badge-yellow-foreground: var(--badge-yellow-foreground);
+  --color-badge-grey-border: var(--badge-grey-border);
+  --color-badge-grey-foreground: var(--badge-grey-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+  body {
+    @apply bg-background font-sans text-foreground;
+  }
+  /* Preflight của Tailwind v4 để nút ở cursor: default; trả lại con trỏ tay như v3. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}

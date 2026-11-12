@@ -36,7 +36,7 @@ class GoogleLoginIT extends IdentityIntegrationTest {
         assertThat(response.status()).isEqualTo(200);
         assertThat(response.body().path("user").path("email").asString()).isEqualTo(email);
         assertThat(response.body().path("user").path("provider").asString()).isEqualTo("GOOGLE");
-        assertThat(response.body().path("user").path("roles").toString()).isEqualTo("[\"ATTENDEE\"]");
+        assertThat(response.body().path("user").path("roles").toString()).isEqualTo("[\"USER\"]");
         assertThat(jdbc.queryForObject("select password_hash from users where email = ?", String.class, email)).isNull();
     }
 

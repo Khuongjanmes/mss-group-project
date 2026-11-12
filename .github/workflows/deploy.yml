@@ -1,0 +1,110 @@
+# Deploy lên EC2 khi merge vào main (release), hoặc chạy tay ở tab Actions.
+# 1. Build image 8 service + web (SPA + Caddy) trên runner, đẩy lên GHCR với tag là commit SHA.
+# 2. SSH vào EC2: lấy code main (compose, script khởi tạo DB), kéo đúng image của commit, khởi động lại.
+# Máy chủ không build gì nên đủ RAM cho các service.
+# Secret cần có: EC2_HOST (Elastic IP), EC2_USER (ubuntu), EC2_SSH_KEY (nội dung file .pem).
+# Trên EC2: repo clone ở ~/openevent, file .env production nằm cạnh docker-compose.yml.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Hai lần deploy không chạy chồng lên nhau; lần sau chờ lần trước xong.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: image (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: eureka-server, context: ., service: eureka-server }
+          - { name: api-gateway, context: ., service: api-gateway }
+          - { name: identity-service, context: ., service: identity-service }
+          - { name: event-service, context: ., service: event-service }
+          - { name: ticket-service, context: ., service: ticket-service }
+          - { name: order-service, context: ., service: order-service }
+          - { name: payment-service, context: ., service: payment-service }
+          - { name: notification-service, context: ., service: notification-service }
+          - { name: web, context: frontend, service: "" }
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tên image trên GHCR phải viết thường.
+      - id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/openevent-${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          build-args: ${{ matrix.service && format('SERVICE={0}', matrix.service) || '' }}
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+    steps:
+      # Chưa có máy chủ (chưa thêm secret) thì chỉ build image, không báo lỗi.
+      - id: ready
+        run: |
+          if [ -z "$EC2_HOST" ] || [ -z "$EC2_USER" ]; then
+            echo "::warning::Chưa có secret EC2_HOST/EC2_USER: đã đẩy image lên GHCR, bỏ qua bước deploy."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.ready.outputs.ok == 'true'
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/ec2
+          chmod 600 ~/.ssh/ec2
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - if: steps.ready.outputs.ok == 'true'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh_ec2() { ssh -i ~/.ssh/ec2 -o BatchMode=yes "$EC2_USER@$EC2_HOST" "$@"; }
+          # Đăng nhập GHCR bằng token của lần chạy này (đọc qua stdin, không lộ trên dòng lệnh), dùng xong đăng xuất.
+          printf '%s' "$REGISTRY_TOKEN" | ssh_ec2 "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          ssh_ec2 "set -e
+            cd ~/openevent
+            git fetch --quiet origin main
+            git reset --hard --quiet origin/main
+            export TAG=${{ github.sha }}
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull --quiet
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans --wait --wait-timeout 300
+            docker image prune -f"
+
+      # Đăng xuất GHCR kể cả khi bước trên lỗi.
+      - if: always() && steps.ready.outputs.ok == 'true'
+        run: ssh -i ~/.ssh/ec2 -o BatchMode=yes "$EC2_USER@$EC2_HOST" "docker logout ghcr.io" || true

@@ -49,7 +49,7 @@ class AuthApiIT extends IdentityIntegrationTest {
         assertThat(response.body().path("expiresIn").asLong()).isEqualTo(900);
         assertThat(response.body().path("user").path("email").asString()).isEqualTo(email);
         assertThat(response.body().path("user").path("fullName").asString()).isEqualTo("Nguyễn Văn A");
-        assertThat(response.body().path("user").path("roles").toString()).isEqualTo("[\"ATTENDEE\"]");
+        assertThat(response.body().path("user").path("roles").toString()).isEqualTo("[\"USER\"]");
     }
 
     @Test
@@ -173,7 +173,7 @@ class AuthApiIT extends IdentityIntegrationTest {
 
         assertThat(jwt.getSubject()).isEqualTo(response.body().path("user").path("id").asString());
         assertThat(jwt.getClaimAsString("email")).isEqualTo(email);
-        assertThat(jwt.getClaimAsStringList("roles")).containsExactly("ATTENDEE");
+        assertThat(jwt.getClaimAsStringList("roles")).containsExactly("USER");
         assertThat(jwt.getClaimAsString("iss")).isEqualTo("openevent-identity");
         assertThat(jwt.getExpiresAt()).isBetween(Instant.now().plusSeconds(890), Instant.now().plusSeconds(901));
         assertThat(jwt.getId()).isNotBlank();
@@ -226,17 +226,6 @@ class AuthApiIT extends IdentityIntegrationTest {
     @Test
     void unknownRefreshTokenIsRejected() {
         assertThat(refresh("does-not-exist").status()).isEqualTo(401);
-    }
-
-    @Test
-    void refreshPicksUpNewlyGrantedRole() {
-        Response auth = register(uniqueEmail());
-        String id = auth.body().path("user").path("id").asString();
-        assertThat(send("PUT", "/api/users/" + id + "/roles/organizer", null, admin()).status()).isEqualTo(200);
-
-        Response refreshed = refresh(auth.body().path("refreshToken").asString());
-
-        assertThat(refreshed.body().path("user").path("roles").toString()).contains("ORGANIZER", "ATTENDEE");
     }
 
     @Test

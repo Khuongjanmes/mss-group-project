@@ -77,18 +77,17 @@ class EventServiceBaseIT {
     }
 
     @Test
-    void pingFollowsSecurityRules() throws Exception {
-        assertThat(get("/api/events/ping").statusCode()).isEqualTo(200);
+    void publicReadNeedsNoIdentity() throws Exception {
+        assertThat(get("/api/events").statusCode()).isEqualTo(200);
     }
 
     @Test
-    void pingReceivesIdentityFromGatewayHeaders() throws Exception {
+    void roleGuardedReadUsesIdentityFromGatewayHeaders() throws Exception {
         String userId = UUID.randomUUID().toString();
 
-        HttpResponse<String> response = get("/api/events/ping", "X-User-Id", userId, "X-User-Roles", "ATTENDEE");
-
-        assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("event-service", userId, "ATTENDEE");
+        assertThat(get("/api/events/my").statusCode()).isEqualTo(401);
+        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "ADMIN").statusCode()).isEqualTo(403);
+        assertThat(get("/api/events/my", "X-User-Id", userId, "X-User-Roles", "USER").statusCode()).isEqualTo(200);
     }
 
     @Test

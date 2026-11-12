@@ -44,7 +44,7 @@ class UserApiIT extends IdentityIntegrationTest {
 
     @Test
     void meForUnknownUserIsUnauthorized() {
-        Caller ghost = new Caller(UUID.randomUUID().toString(), "ATTENDEE");
+        Caller ghost = new Caller(UUID.randomUUID().toString(), "USER");
 
         assertThat(send("GET", "/api/users/me", null, ghost).status()).isEqualTo(401);
     }
@@ -155,14 +155,6 @@ class UserApiIT extends IdentityIntegrationTest {
         assertThat(send("GET", "/api/users/" + attendee.id(), null, attendee).status()).isEqualTo(403);
         assertThat(send("PUT", "/api/users/" + attendee.id() + "/lock", null, attendee).status()).isEqualTo(403);
         assertThat(send("PUT", "/api/users/" + attendee.id() + "/unlock", null, attendee).status()).isEqualTo(403);
-        assertThat(send("PUT", "/api/users/" + attendee.id() + "/roles/organizer", null, attendee).status()).isEqualTo(403);
-    }
-
-    @Test
-    void organizerCannotUseAdminApis() {
-        Caller organizer = new Caller(UUID.randomUUID().toString(), "ATTENDEE,ORGANIZER");
-
-        assertThat(send("GET", "/api/users", null, organizer).status()).isEqualTo(403);
     }
 
     @Test
@@ -250,21 +242,8 @@ class UserApiIT extends IdentityIntegrationTest {
     }
 
     @Test
-    void grantOrganizerIsIdempotentAndKeepsAttendee() {
-        Caller admin = admin();
-        String id = register(uniqueEmail()).body().path("user").path("id").asString();
-
-        send("PUT", "/api/users/" + id + "/roles/organizer", null, admin);
-        Response second = send("PUT", "/api/users/" + id + "/roles/organizer", null, admin);
-
-        assertThat(second.status()).isEqualTo(200);
-        assertThat(second.body().path("roles").size()).isEqualTo(2);
-        assertThat(second.body().path("roles").toString()).contains("ATTENDEE", "ORGANIZER");
-    }
-
-    @Test
     void wrongMethodReturnsJson405() {
-        Response response = send("DELETE", "/api/users/me", null, new Caller(UUID.randomUUID().toString(), "ATTENDEE"));
+        Response response = send("DELETE", "/api/users/me", null, new Caller(UUID.randomUUID().toString(), "USER"));
 
         assertThat(response.status()).isEqualTo(405);
         assertThat(response.body().path("status").asInt()).isEqualTo(405);

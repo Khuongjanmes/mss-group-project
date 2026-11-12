@@ -1,0 +1,26 @@
+# Người phụ trách theo bảng "Cấu trúc và phân công" trong README (nguồn duy nhất: sửa ở đó trước, rồi sửa file này). PR sửa thư mục nào thì GitHub tự mời
+# người phụ trách thư mục đó review. Dòng khớp sau cùng thắng, nên quy tắc chung đặt ở trên.
+
+# Mặc định và hạ tầng: TV1 (nhóm trưởng)
+*                       @YuiGuende
+/eureka-server/         @YuiGuende
+/api-gateway/           @YuiGuende
+/common-lib/            @YuiGuende
+/infra/                 @YuiGuende
+/docker-compose.yml     @YuiGuende
+/.github/               @YuiGuende
+
+# Service
+/identity-service/      @YuiGuende
+/notification-service/  @YuiGuende
+/event-service/         @duev-dev
+/payment-service/       @duev-dev
+/ticket-service/        @TranQuan1105
+/order-service/         @Khuongjanmes
+
+# Frontend: mỗi người làm màn hình của service mình, nên nhóm trưởng và người phụ trách Event cùng xem
+/frontend/              @YuiGuende @duev-dev
+
+# Tài liệu dùng chung: cả nhóm
+/requirement.md         @YuiGuende @duev-dev @TranQuan1105 @Khuongjanmes
+/README.md              @YuiGuende @duev-dev @TranQuan1105 @Khuongjanmes

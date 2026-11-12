@@ -98,7 +98,7 @@ class GatewayTest {
     @Test
     void validTokenIsForwardedAsIdentityHeaders() throws Exception {
         String userId = UUID.randomUUID().toString();
-        String token = TestTokens.hs256(TestTokens.claims(userId, "ATTENDEE", "ORGANIZER").build(), TestTokens.SECRET);
+        String token = TestTokens.hs256(TestTokens.claims(userId, "USER", "ADMIN").build(), TestTokens.SECRET);
 
         HttpResponse<String> response = get("/api/orders/my", bearer(token));
 
@@ -106,12 +106,12 @@ class GatewayTest {
         StubDownstream.Received received = STUB.last();
         assertThat(received.header("X-User-Id")).isEqualTo(userId);
         assertThat(received.header("X-User-Email")).isEqualTo(TestTokens.EMAIL);
-        assertThat(received.header("X-User-Roles").split(",")).containsExactlyInAnyOrder("ATTENDEE", "ORGANIZER");
+        assertThat(received.header("X-User-Roles").split(",")).containsExactlyInAnyOrder("USER", "ADMIN");
     }
 
     @Test
     void authorizationHeaderIsNotForwardedDownstream() throws Exception {
-        get("/api/orders/my", bearer(TestTokens.token("ATTENDEE")));
+        get("/api/orders/my", bearer(TestTokens.token("USER")));
 
         assertThat(STUB.last().hasHeader("Authorization")).isFalse();
     }
@@ -158,7 +158,7 @@ class GatewayTest {
 
     @Test
     void tokenInQueryStringIsNotAccepted() throws Exception {
-        assertThat(get("/api/orders/my?access_token=" + TestTokens.token("ATTENDEE")).statusCode()).isIn(400, 401);
+        assertThat(get("/api/orders/my?access_token=" + TestTokens.token("USER")).statusCode()).isIn(400, 401);
         assertThat(STUB.requests()).isEmpty();
     }
 
@@ -167,14 +167,14 @@ class GatewayTest {
     @Test
     void spoofedIdentityHeadersAreReplacedByTokenValues() throws Exception {
         String userId = UUID.randomUUID().toString();
-        String token = TestTokens.hs256(TestTokens.claims(userId, "ATTENDEE").build(), TestTokens.SECRET);
+        String token = TestTokens.hs256(TestTokens.claims(userId, "USER").build(), TestTokens.SECRET);
 
         get("/api/orders/my", "Authorization", "Bearer " + token,
                 "X-User-Id", ANY_ID, "X-User-Roles", "ADMIN", "X-User-Email", "evil@example.com");
 
         StubDownstream.Received received = STUB.last();
         assertThat(received.headerValues("X-User-Id")).containsExactly(userId);
-        assertThat(received.headerValues("X-User-Roles")).containsExactly("ATTENDEE");
+        assertThat(received.headerValues("X-User-Roles")).containsExactly("USER");
         assertThat(received.headerValues("X-User-Email")).containsExactly(TestTokens.EMAIL);
     }
 
@@ -213,11 +213,12 @@ class GatewayTest {
     void vnpayReturnPassesAuthenticationWithoutToken() throws Exception {
         // payment-service trong test trỏ vào cổng chết: 503 nghĩa là request đã qua lớp xác thực.
         assertThat(get("/api/payments/vnpay-return").statusCode()).isEqualTo(503);
+        assertThat(send("POST", "/api/payments/payos-webhook", "{}").statusCode()).isEqualTo(503);
     }
 
     @Test
     void expiredTokenDoesNotBlockAuthEndpointsSoSpaCanRefresh() throws Exception {
-        String expired = TestTokens.hs256(TestTokens.claims(ANY_ID, "ATTENDEE")
+        String expired = TestTokens.hs256(TestTokens.claims(ANY_ID, "USER")
                 .expirationTime(Date.from(Instant.now().minusSeconds(3600))).build(), TestTokens.SECRET);
 
         HttpResponse<String> response = send("POST", "/api/auth/refresh", "{}", bearer(expired));
@@ -229,7 +230,7 @@ class GatewayTest {
     @Test
     void validTokenOnPublicEventPathStillForwardsIdentity() throws Exception {
         String userId = UUID.randomUUID().toString();
-        String token = TestTokens.hs256(TestTokens.claims(userId, "ATTENDEE").build(), TestTokens.SECRET);
+        String token = TestTokens.hs256(TestTokens.claims(userId, "USER").build(), TestTokens.SECRET);
 
         get("/api/events", bearer(token));
 
@@ -247,45 +248,39 @@ class GatewayTest {
     @ParameterizedTest(name = "{0} {1} với {2} -> {3}")
     @CsvSource({
             // Hồ sơ cá nhân: chỉ cần đăng nhập
-            "GET,  /api/users/me,                     ATTENDEE,  200",
-            "PUT,  /api/users/me,                     ATTENDEE,  200",
-            "PUT,  /api/users/me/password,            ATTENDEE,  200",
+            "GET,  /api/users/me,                     USER,  200",
+            "PUT,  /api/users/me,                     USER,  200",
+            "PUT,  /api/users/me/password,            USER,  200",
             // Quản trị người dùng
-            "GET,  /api/users,                        ATTENDEE,  403",
-            "GET,  /api/users,                        ORGANIZER, 403",
+            "GET,  /api/users,                        USER,  403",
             "GET,  /api/users,                        ADMIN,     200",
-            "GET,  /api/users/" + "11111111-1111-1111-1111-111111111111, ATTENDEE, 403",
-            "PUT,  /api/users/x/lock,                 ORGANIZER, 403",
+            "GET,  /api/users/" + "11111111-1111-1111-1111-111111111111, USER, 403",
+            "PUT,  /api/users/x/lock,                 USER,  403",
             "PUT,  /api/users/x/lock,                 ADMIN,     200",
-            "PUT,  /api/users/x/roles/organizer,      ADMIN,     200",
             // Sự kiện
-            "POST, /api/events,                       ATTENDEE,  403",
-            "POST, /api/events,                       ORGANIZER, 200",
-            "PUT,  /api/events/1,                     ATTENDEE,  403",
-            "PUT,  /api/events/1,                     ORGANIZER, 200",
-            "PUT,  /api/events/1/approve,             ORGANIZER, 403",
+            "POST, /api/events,                       USER,  200",
+            "PUT,  /api/events/1,                     USER,  200",
+            "PUT,  /api/events/1/approve,             USER,  403",
             "PUT,  /api/events/1/approve,             ADMIN,     200",
-            "PUT,  /api/events/1/reject,              ORGANIZER, 403",
+            "PUT,  /api/events/1/reject,              USER,  403",
             "PUT,  /api/events/1/reject,              ADMIN,     200",
-            "DELETE, /api/events/1,                   ATTENDEE,  403",
+            "DELETE, /api/events/1,                   USER,  200",
+            "POST, /api/organizations,                USER,  200",
             // Danh mục, địa điểm
-            "POST, /api/categories,                   ORGANIZER, 403",
+            "POST, /api/categories,                   USER,  403",
             "POST, /api/categories,                   ADMIN,     200",
-            "DELETE, /api/categories/1,               ORGANIZER, 403",
-            "POST, /api/venues,                       ATTENDEE,  403",
-            "POST, /api/venues,                       ORGANIZER, 200",
+            "DELETE, /api/categories/1,               USER,  403",
+            "POST, /api/venues,                       USER,  403",
+            "POST, /api/venues,                       ADMIN,     200",
             // Vé
-            "POST, /api/ticket-types,                 ATTENDEE,  403",
-            "POST, /api/ticket-types,                 ORGANIZER, 200",
-            "PUT,  /api/ticket-types/1,               ADMIN,     403",
-            "POST, /api/tickets/check-in,             ATTENDEE,  403",
-            "POST, /api/tickets/check-in,             ORGANIZER, 200",
-            "GET,  /api/tickets/my,                   ATTENDEE,  200",
+            "POST, /api/ticket-types,                 USER,  200",
+            "POST, /api/tickets/check-in,             USER,  200",
+            "GET,  /api/tickets/my,                   USER,  200",
             // Đơn hàng, thanh toán, thông báo
-            "POST, /api/orders,                       ATTENDEE,  200",
-            "POST, /api/payments,                     ATTENDEE,  503",
-            "GET,  /api/payments,                     ATTENDEE,  403",
-            "PUT,  /api/payments/1/refunded,          ORGANIZER, 403"})
+            "POST, /api/orders,                       USER,  200",
+            "POST, /api/payments,                     USER,  503",
+            "GET,  /api/payments,                     USER,  403",
+            "PUT,  /api/payments/1/refunded,          USER,  403"})
     void roleRules(String method, String path, String role, int expected) throws Exception {
         HttpResponse<String> response = send(method.trim(), path.trim(),
                 method.trim().equals("GET") || method.trim().equals("DELETE") ? null : "{}",
@@ -371,7 +366,7 @@ class GatewayTest {
     @ValueSource(strings = {
             "/api/users/me", "/api/orders/my", "/api/tickets/my"})
     void pathIsForwardedUnchanged(String path) throws Exception {
-        get(path, bearer(TestTokens.token("ATTENDEE")));
+        get(path, bearer(TestTokens.token("USER")));
 
         assertThat(STUB.last().rawPath()).isEqualTo(path);
     }
@@ -395,7 +390,7 @@ class GatewayTest {
 
     @Test
     void unknownPathForAuthenticatedUserIsJson404() throws Exception {
-        HttpResponse<String> response = get("/api/nothing-here", bearer(TestTokens.token("ATTENDEE")));
+        HttpResponse<String> response = get("/api/nothing-here", bearer(TestTokens.token("USER")));
 
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.body()).contains("\"status\":404");
@@ -406,7 +401,7 @@ class GatewayTest {
 
     @Test
     void serviceWithoutInstanceIsJson503WithoutLeakingInternals() throws Exception {
-        HttpResponse<String> response = get("/api/notifications/my", bearer(TestTokens.token("ATTENDEE")));
+        HttpResponse<String> response = get("/api/notifications/my", bearer(TestTokens.token("USER")));
 
         assertThat(response.statusCode()).isEqualTo(503);
         assertThat(response.body()).contains("\"code\":\"SERVICE_UNAVAILABLE\"").doesNotContain("notification-service", "lb://");
@@ -414,7 +409,7 @@ class GatewayTest {
 
     @Test
     void connectionRefusedIsJson503WithoutLeakingInternals() throws Exception {
-        HttpResponse<String> response = send("POST", "/api/payments", "{}", bearer(TestTokens.token("ATTENDEE")));
+        HttpResponse<String> response = send("POST", "/api/payments", "{}", bearer(TestTokens.token("USER")));
 
         assertThat(response.statusCode()).isEqualTo(503);
         assertThat(response.body()).contains("\"code\":\"SERVICE_UNAVAILABLE\"").doesNotContain("localhost", "Connection");
@@ -422,7 +417,7 @@ class GatewayTest {
 
     @Test
     void slowServiceIsJson504() throws Exception {
-        HttpResponse<String> response = get("/api/orders/slow", bearer(TestTokens.token("ATTENDEE")));
+        HttpResponse<String> response = get("/api/orders/slow", bearer(TestTokens.token("USER")));
 
         assertThat(response.statusCode()).isEqualTo(504);
         assertThat(response.body()).contains("\"code\":\"GATEWAY_TIMEOUT\"");

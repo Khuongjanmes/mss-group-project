@@ -105,7 +105,7 @@ public class AuthService {
     }
 
     private User saveNewAttendee(User user) {
-        user.addRole(roles.findByName(RoleName.ATTENDEE).orElseThrow());
+        user.addRole(roles.findByName(RoleName.USER).orElseThrow());
         try {
             return users.saveAndFlush(user);
         } catch (DataIntegrityViolationException ex) {
