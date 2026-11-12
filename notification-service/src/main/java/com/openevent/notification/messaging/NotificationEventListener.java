@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.openevent.common.messaging.events.TicketIssued;
 import com.openevent.common.messaging.events.TicketsCancelled;
+import com.openevent.notification.notifications.EventCancelledNotifier;
 import com.openevent.notification.notifications.TicketIssuedNotifier;
 
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class NotificationEventListener {
     private static final Logger log = LoggerFactory.getLogger(NotificationEventListener.class);
 
     private final TicketIssuedNotifier ticketIssued;
+    private final EventCancelledNotifier eventCancelled;
 
     @RabbitHandler
     public void on(TicketIssued event) {
@@ -30,7 +32,7 @@ public class NotificationEventListener {
 
     @RabbitHandler
     public void on(TicketsCancelled event) {
-        // TODO(#61): gửi email báo sự kiện bị hủy; bỏ qua nếu event.messageId() đã xử lý (BR-11).
         log.info("Nhận TicketsCancelled: {}", event.messageId());
+        eventCancelled.handle(event);
     }
 }

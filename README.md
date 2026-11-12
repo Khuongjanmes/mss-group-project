@@ -12,7 +12,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [eureka-server/](eureka-server/) | 8761 | — | TV1 @YuiGuende | Hoàn thành |
 | [api-gateway/](api-gateway/) | 8080 | — | TV1 @YuiGuende | Hoàn thành |
 | [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 @YuiGuende | Hoàn thành |
-| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Email vé (#60); còn báo hủy sự kiện, hộp thông báo |
+| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Email vé (#60), báo hủy sự kiện (#61); còn hộp thông báo |
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
@@ -308,7 +308,7 @@ Chưa có API REST (`GET /api/notifications/my` làm ở #62). Service nhận me
 | Message nhận | Notification làm gì |
 | --- | --- |
 | `TicketIssued` (KB-4) | Hỏi Identity email người mua (`/internal/users/{id}`), hỏi Event tên, giờ, địa điểm (`/internal/events/{id}`); gửi email HTML, mỗi vé một ảnh QR nhúng (nội dung QR là mã vé, giống trang "Vé của tôi"); lưu thông báo `TICKET_ISSUED` vào collection `notifications` |
-| `TicketsCancelled` (KB-5) | Chưa làm (#61) |
+| `TicketsCancelled` (KB-5) | Bỏ trùng danh sách người mua, hỏi Identity email theo lô (`POST /internal/users/batch`, tối đa 500 id mỗi lần), hỏi Event tên, giờ, địa điểm; gửi mỗi người một email báo hủy (vé không còn dùng được, đơn đã thanh toán chờ hoàn tiền, nút "Xem đơn của tôi"); lưu thông báo `EVENT_CANCELLED`. Tài khoản không còn tồn tại thì bỏ qua |
 
-- **Không gửi trùng (BR-11):** unique index `(messageId, userId)` trên `notifications`; message đã có thông báo thì bỏ qua. Thông báo chỉ được lưu sau khi gửi email xong, nên Identity, Event hoặc máy chủ mail lỗi thì message được thử lại (3 lần) rồi vào `notification-service.events.dlq`, không mất email.
+- **Không gửi trùng (BR-11):** unique index `(messageId, userId)` trên `notifications`; người đã có thông báo của message thì bỏ qua. Mỗi người được gửi email rồi lưu ngay, nên Identity, Event hoặc máy chủ mail lỗi giữa chừng thì message được thử lại (chờ 2, 6, 18, 54 giây) mà người đã nhận không bị gửi lần hai; hết lượt thử thì vào `notification-service.events.dlq`.
 - **Cấu hình mail:** `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` trong `.env` (xem `.env.example`, ví dụ Gmail với App password). Để trống `MAIL_HOST` thì không gửi email, thông báo vẫn được lưu với `channel = IN_APP`.
