@@ -1,0 +1,37 @@
+# Sao chép thành terraform.tfvars rồi điền giá trị (giống .env của production). Không commit terraform.tfvars.
+
+# Lần đầu để false: tạo mạng + dữ liệu, chạy scripts/create-databases.sh, rồi đổi thành true và apply lại.
+services_enabled = false
+
+# Mật khẩu dữ liệu: openssl rand -hex 16
+db_password    = ""
+mq_password    = ""
+docdb_password = ""
+
+# openssl rand -base64 48
+jwt_secret = ""
+
+bootstrap_admin_email    = "admin@openevent.local"
+bootstrap_admin_password = ""
+
+# Thêm https://<app_url> vào "Authorized JavaScript origins" của OAuth client trên Google Cloud Console.
+google_client_id = ""
+
+cloudinary_cloud_name = ""
+cloudinary_api_key    = ""
+cloudinary_api_secret = ""
+
+# Webhook trên my.payos.vn: https://<app_url>/api/payments/payos-webhook
+payos_client_id    = ""
+payos_api_key      = ""
+payos_checksum_key = ""
+
+vnpay_tmn_code    = ""
+vnpay_hash_secret = ""
+
+# Để trống mail_host thì không gửi email, thông báo vẫn được lưu.
+mail_host     = ""
+mail_port     = "587"
+mail_username = ""
+mail_password = ""
+mail_from     = ""
