@@ -6,3 +6,11 @@ target/
 *.log
 .DS_Store
 ~$*
+
+# Terraform: state chứa mật khẩu, tfvars chứa secret
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+infra/terraform/terraform.tfvars
