@@ -81,6 +81,10 @@ aws logs tail /ecs/openevent/ticket-service --follow
 # Vào container (ECS Exec, cần Session Manager plugin)
 aws ecs execute-command --cluster openevent --task <task-id> --container ticket-service --interactive --command sh
 
+# Tạm tắt khi không dùng (ban đêm): mọi service về 0 task, dữ liệu giữ nguyên; bật lại mất 3-4 phút
+bash scripts/scale.sh down
+bash scripts/scale.sh up
+
 # Xóa toàn bộ hạ tầng (dữ liệu RDS và MongoDB mất, không giữ snapshot)
 terraform destroy
 ```
