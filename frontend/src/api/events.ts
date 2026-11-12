@@ -37,12 +37,16 @@ export interface EventItem {
   createdAt: string
 }
 
+/** Tab của trang sự kiện; "đã kết thúc" gồm cả sự kiện COMPLETED. */
+export type EventTimeline = 'UPCOMING' | 'ONGOING' | 'ENDED'
+
 export interface EventSearchParams {
   keyword?: string
   category?: string
   city?: string
   from?: string
   to?: string
+  timeline?: EventTimeline
   page?: number
   size?: number
 }
@@ -93,6 +97,11 @@ export interface EventRequest {
 /** Sự kiện mình làm HOST, mọi trạng thái. */
 export async function searchMyEvents(params: { status?: EventStatus; page?: number; size?: number }) {
   return (await api.get<PageResponse<EventItem>>('/api/events/my', { params })).data
+}
+
+/** Sự kiện mình soát vé được (HOST, STAFF, OWNER/MANAGER), đã công bố hoặc vừa kết thúc, sớm nhất trước. */
+export async function listCheckInEvents(): Promise<EventItem[]> {
+  return (await api.get<EventItem[]>('/api/events/check-in')).data
 }
 
 export async function getEvent(id: string): Promise<EventItem> {

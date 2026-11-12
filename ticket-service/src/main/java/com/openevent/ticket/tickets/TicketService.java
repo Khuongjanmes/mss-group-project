@@ -6,9 +6,11 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -33,6 +35,7 @@ import com.openevent.ticket.reservations.Reservation;
 import com.openevent.ticket.reservations.ReservationRepository;
 import com.openevent.ticket.reservations.ReservationService;
 import com.openevent.ticket.tickets.dto.AttendeeResponse;
+import com.openevent.ticket.tickets.dto.CheckInResponse;
 import com.openevent.ticket.tickets.dto.TicketResponse;
 import com.openevent.ticket.tickettypes.TicketType;
 import com.openevent.ticket.tickettypes.TicketTypeRepository;
@@ -125,24 +128,42 @@ public class TicketService {
 
     /**
      * KB-3: lấy sự kiện từ vé trong DB (không tin client), hỏi Event quyền {@code canCheckIn} ngoài transaction,
-     * rồi khóa vé và check-in. Event lỗi thì chỉ HOST theo bản cache check-in được.
+     * rồi khóa vé và check-in. Event lỗi thì chỉ HOST theo bản cache check-in được. {@code eventId} là sự kiện người
+     * soát đang chọn: vé của sự kiện khác bị từ chối. Họ tên người mua và người đã soát hỏi Identity sau transaction.
      */
-    public TicketResponse checkIn(UUID callerId, String code) {
-        TicketType type = tx.execute(status -> tickets.findByCode(code.trim())
+    public CheckInResponse checkIn(UUID callerId, UUID eventId, String code) {
+        String value = code.trim();
+        TicketType type = tx.execute(status -> tickets.findByCode(value)
                 .flatMap(ticket -> types.findById(ticket.getTicketTypeId()))
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TICKET_NOT_FOUND", "Không tìm thấy vé")));
+        if (eventId != null && !eventId.equals(type.getEventId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "TICKET_NOT_IN_EVENT", "Vé này thuộc sự kiện khác");
+        }
         EventWindow window = events.requireCheckIn(type.getEventId(), callerId, new EventWindow(
                 type.getEventOrganizerId(), type.getEventStartTime(), type.getEventEndTime(), false));
-        return tx.execute(status -> {
+        record Outcome(Ticket ticket, boolean done) {
+        }
+        Outcome outcome = tx.execute(status -> {
             if (window.fromEvent()) {
                 types.refreshEventCache(type.getEventId(), window.organizerId(), window.startTime(), window.endTime());
             }
-            Ticket ticket = tickets.findWithLockByCode(code.trim()).orElseThrow();
+            Ticket ticket = tickets.findWithLockByCode(value).orElseThrow();
+            if (ticket.getStatus() == Ticket.Status.CHECKED_IN) {
+                return new Outcome(ticket, false);
+            }
             ticket.requireUsable();
             requireEventDay(window);
-            ticket.checkIn(Instant.now());
-            return TicketResponse.from(tickets.save(ticket), types.findById(ticket.getTicketTypeId()).orElse(null));
+            ticket.checkIn(Instant.now(), callerId);
+            return new Outcome(tickets.save(ticket), true);
         });
+        Ticket ticket = outcome.ticket();
+        Map<UUID, UserContact> people = contacts(Stream.of(ticket.getOwnerId(), ticket.getCheckedInBy())
+                .filter(Objects::nonNull).distinct().toList());
+        if (!outcome.done()) {
+            UserContact by = ticket.getCheckedInBy() == null ? null : people.get(ticket.getCheckedInBy());
+            throw ticket.alreadyCheckedIn(by == null ? null : Objects.requireNonNullElse(by.fullName(), by.email()));
+        }
+        return CheckInResponse.from(ticket, type, people.get(ticket.getOwnerId()));
     }
 
     /** Danh sách người tham dự: chỉ người quản lý sự kiện; Identity lỗi thì vẫn trả danh sách, thiếu họ tên. */

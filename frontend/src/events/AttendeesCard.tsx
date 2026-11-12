@@ -1,4 +1,4 @@
-import { Users } from 'lucide-react';
+import { Download, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/datetime';
+import { attendeesCsv } from './attendeesCsv';
 
 const TITLE = 'flex items-center gap-2 text-[11px] font-bold tracking-wider text-foreground uppercase';
 
@@ -19,6 +20,30 @@ export function AttendeesCard({ eventId }: { eventId: string }) {
   const [page, setPage] = useState(0);
   const [result, setResult] = useState<PageResponse<Attendee> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  /** Organizer #8: tải hết các trang (100 vé mỗi lần) rồi lưu CSV mở được bằng Excel. */
+  async function exportExcel() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const all: Attendee[] = [];
+      for (let next = 0, pages = 1; next < pages; next++) {
+        const data = await listAttendees(eventId, next, 100);
+        all.push(...data.content);
+        pages = data.totalPages;
+      }
+      const url = URL.createObjectURL(new Blob([attendeesCsv(all, formatDateTime)], { type: 'text/csv;charset=utf-8' }));
+      const link = Object.assign(document.createElement('a'), { href: url, download: `nguoi-tham-du-${eventId.slice(0, 8)}.csv` });
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(errorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -38,10 +63,26 @@ export function AttendeesCard({ eventId }: { eventId: string }) {
             <Users className="size-4 text-accent-foreground" aria-hidden />
             Người tham dự {result && `(${result.totalElements})`}
           </h2>
-          <Button asChild size="sm" variant="outline">
-            <Link to="/organizer/check-in">Mở trang check-in</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={exporting || !result || result.totalElements === 0}
+              onClick={() => void exportExcel()}
+            >
+              <Download />
+              {exporting ? 'Đang xuất…' : 'Xuất Excel'}
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/organizer/check-in">Mở trang check-in</Link>
+            </Button>
+          </div>
         </div>
+        {exportError && (
+          <p role="alert" className="px-5 text-sm text-destructive">
+            Không xuất được danh sách: {exportError}
+          </p>
+        )}
         {error ? (
           <p role="alert" className="px-5 text-sm text-destructive">
             {error}

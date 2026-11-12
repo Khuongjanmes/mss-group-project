@@ -62,6 +62,9 @@ public class Ticket {
 
     private Instant checkedInAt;
 
+    /** Người soát vé; vé check-in trước khi có cột này thì trống. */
+    private UUID checkedInBy;
+
     @Column(nullable = false, updatable = false)
     private Instant issuedAt;
 
@@ -78,16 +81,23 @@ public class Ticket {
     }
 
     /** BR-09: mỗi vé chỉ check-in một lần. */
-    public void checkIn(Instant now) {
+    public void checkIn(Instant now, UUID by) {
         requireUsable();
         status = Status.CHECKED_IN;
         checkedInAt = now;
+        checkedInBy = by;
+    }
+
+    /** {@code byName}: người đã soát vé, không biết thì {@code null}. */
+    public ApiException alreadyCheckedIn(String byName) {
+        return new ApiException(HttpStatus.CONFLICT, "ALREADY_CHECKED_IN",
+                "Vé đã check-in lúc " + CHECKED_IN_AT.format(checkedInAt) + (byName == null ? "" : " bởi " + byName));
     }
 
     /** Báo vé đã dùng hoặc đã hủy trước mọi kiểm tra khác, để người soát vé biết ngay lý do. */
     public void requireUsable() {
         if (status == Status.CHECKED_IN) {
-            throw new ApiException(HttpStatus.CONFLICT, "ALREADY_CHECKED_IN", "Vé đã check-in lúc " + CHECKED_IN_AT.format(checkedInAt));
+            throw alreadyCheckedIn(null);
         }
         if (status == Status.CANCELLED) {
             throw new ApiException(HttpStatus.CONFLICT, "TICKET_CANCELLED", "Vé đã bị hủy");

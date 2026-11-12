@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -334,6 +335,10 @@ class EventApiIT {
         assertThat(summary.text("status")).isEqualTo("PUBLISHED");
         assertThat(summary.body().has("startTime")).isTrue();
         assertThat(summary.body().has("endTime")).isTrue();
+        assertThat(summary.text("title")).isEqualTo("Nội bộ");
+        assertThat(summary.text("venueName")).isEqualTo("Hội trường A");
+        assertThat(summary.text("venueAddress")).isEqualTo("1 Lê Duẩn");
+        assertThat(summary.text("venueCity")).isEqualTo("Huế");
         assertThat(send("GET", "/internal/events/" + UUID.randomUUID(), null, null).code()).isEqualTo("EVENT_NOT_FOUND");
     }
 
@@ -359,6 +364,30 @@ class EventApiIT {
             Thread.sleep(200);
         }
         assertThat(send("GET", "/api/events/" + id, null, null).text("status")).isEqualTo("COMPLETED");
+    }
+
+    private List<String> timelineIds(String timeline, String keyword) {
+        return send("GET", "/api/events?size=100&keyword=" + keyword + "&timeline=" + timeline, null, null).body()
+                .path("content").valueStream().map(event -> event.path("id").asString()).toList();
+    }
+
+    @Test
+    void timelineSplitsUpcomingOngoingAndEndedEvents() {
+        String keyword = "timeline" + UUID.randomUUID().toString().substring(0, 8);
+        String upcoming = publish(organizer, futureEvent(keyword + " sắp tới", "Huế"));
+        String ongoing = publish(organizer, futureEvent(keyword + " đang diễn ra", "Huế"));
+        String ended = publish(organizer, futureEvent(keyword + " đã xong", "Huế"));
+        String cancelled = publish(organizer, futureEvent(keyword + " đã hủy", "Huế"));
+        send("PUT", "/api/events/" + cancelled + "/cancel", null, organizer);
+        jdbc.update("update events set start_time = now() - interval '1 hour' where id = ?::uuid", ongoing);
+        jdbc.update("update events set start_time = now() - interval '3 hours', end_time = now() - interval '1 hour', "
+                + "status = 'COMPLETED' where id in (?::uuid, ?::uuid)", ended, cancelled);
+        jdbc.update("update events set status = 'CANCELLED' where id = ?::uuid", cancelled);
+
+        assertThat(timelineIds("UPCOMING", keyword)).containsExactly(upcoming);
+        assertThat(timelineIds("ONGOING", keyword)).containsExactly(ongoing);
+        assertThat(timelineIds("ENDED", keyword)).containsExactly(ended);
+        assertThat(send("GET", "/api/events?timeline=SOMEDAY", null, null).status()).isEqualTo(400);
     }
 
     private String createOrganization(Caller owner) {
@@ -461,6 +490,29 @@ class EventApiIT {
                 otherOrganizer).code()).isEqualTo("OWNER_CANNOT_LEAVE");
         assertThat(send("PUT", "/api/organizations/" + org, Map.of("name", "Đổi tên"), organizer).code())
                 .isEqualTo("NOT_ORGANIZATION_OWNER");
+    }
+
+    private List<String> checkInEventIds(Caller caller) {
+        return send("GET", "/api/events/check-in", null, caller).body().valueStream()
+                .map(event -> event.path("id").asString()).toList();
+    }
+
+    @Test
+    void checkInListShowsPublishedEventsOfHostStaffOwnerAndManager() {
+        String org = createOrganization(organizer);
+        invite(org, otherOrganizer, "MANAGER", organizer);
+        invite(org, member, "MEMBER", organizer);
+        Map<String, Object> body = futureEvent("Soát vé CLB", "Huế");
+        body.put("organizationId", org);
+        String published = publish(organizer, body);
+        String draft = createDraft(organizer, body);
+        send("POST", "/api/events/" + published + "/staff", Map.of("email", email(attendee)), organizer);
+
+        for (Caller caller : List.of(organizer, otherOrganizer, attendee)) {
+            assertThat(checkInEventIds(caller)).contains(published).doesNotContain(draft);
+        }
+        assertThat(checkInEventIds(member)).doesNotContain(published);
+        assertThat(checkInEventIds(outsider)).doesNotContain(published);
     }
 
     @Test
