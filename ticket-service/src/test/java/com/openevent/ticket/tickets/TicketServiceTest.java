@@ -36,12 +36,13 @@ import com.openevent.common.web.PageResponse;
 import com.openevent.ticket.client.EventDirectory;
 import com.openevent.ticket.client.EventDirectory.EventWindow;
 import com.openevent.ticket.client.IdentityClient;
+import com.openevent.ticket.client.IdentityClient.UserContact;
 import com.openevent.ticket.messaging.ProcessedMessages;
 import com.openevent.ticket.reservations.Reservation;
 import com.openevent.ticket.reservations.ReservationRepository;
 import com.openevent.ticket.reservations.ReservationService;
 import com.openevent.ticket.tickets.dto.AttendeeResponse;
-import com.openevent.ticket.tickets.dto.TicketResponse;
+import com.openevent.ticket.tickets.dto.CheckInResponse;
 import com.openevent.ticket.tickettypes.TicketType;
 import com.openevent.ticket.tickettypes.TicketTypeRepository;
 
@@ -178,14 +179,21 @@ class TicketServiceTest {
         return ticket;
     }
 
-    @Test
-    void checksInOnTheEventDay() {
-        Ticket ticket = ticketFor(Instant.now().minus(Duration.ofHours(1)), Instant.now().plus(Duration.ofHours(1)));
+    private void identityKnows(UUID id, String name) {
+        when(identity.getUsers(any())).thenAnswer(call -> ((IdentityClient.UserBatchRequest) call.getArgument(0)).ids()
+                .stream().filter(id::equals).map(found -> new UserContact(found, "u@x.vn", name, null, "ACTIVE")).toList());
+    }
 
-        TicketResponse response = service.checkIn(staffId, "  " + ticket.getCode() + " ");
+    @Test
+    void checksInOnTheEventDayAndShowsTheBuyer() {
+        Ticket ticket = ticketFor(Instant.now().minus(Duration.ofHours(1)), Instant.now().plus(Duration.ofHours(1)));
+        identityKnows(ownerId, "Lê Minh");
+
+        CheckInResponse response = service.checkIn(staffId, eventId, "  " + ticket.getCode() + " ");
 
         assertThat(response.status()).isEqualTo(Ticket.Status.CHECKED_IN);
-        assertThat(ticket.getCheckedInAt()).isNotNull();
+        assertThat(response.ownerName()).isEqualTo("Lê Minh");
+        assertThat(ticket.getCheckedInBy()).isEqualTo(staffId);
         verify(types).refreshEventCache(eq(eventId), any(), any(), any());
     }
 
@@ -193,25 +201,39 @@ class TicketServiceTest {
     void refusesCheckInBeforeTheEventDay() {
         Ticket ticket = ticketFor(Instant.now().plus(Duration.ofDays(3)), Instant.now().plus(Duration.ofDays(3).plusHours(2)));
 
-        assertThatThrownBy(() -> service.checkIn(staffId, ticket.getCode()))
+        assertThatThrownBy(() -> service.checkIn(staffId, eventId, ticket.getCode()))
                 .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.getCode()).isEqualTo("OUTSIDE_EVENT_DAYS"));
         assertThat(ticket.getStatus()).isEqualTo(Ticket.Status.ISSUED);
     }
 
     @Test
-    void secondCheckInIsRefused() {
+    void secondCheckInSaysWhoScannedIt() {
         Ticket ticket = ticketFor(Instant.now().minus(Duration.ofHours(1)), Instant.now().plus(Duration.ofHours(1)));
-        service.checkIn(staffId, ticket.getCode());
+        service.checkIn(staffId, eventId, ticket.getCode());
+        identityKnows(staffId, "Trần Soát Vé");
 
-        assertThatThrownBy(() -> service.checkIn(staffId, ticket.getCode()))
-                .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.getCode()).isEqualTo("ALREADY_CHECKED_IN"));
+        assertThatThrownBy(() -> service.checkIn(staffId, eventId, ticket.getCode()))
+                .isInstanceOfSatisfying(ApiException.class, ex -> {
+                    assertThat(ex.getCode()).isEqualTo("ALREADY_CHECKED_IN");
+                    assertThat(ex.getMessage()).endsWith("bởi Trần Soát Vé");
+                });
+    }
+
+    @Test
+    void ticketOfAnotherEventIsRefusedWithoutAskingEvent() {
+        Ticket ticket = ticketFor(Instant.now().minus(Duration.ofHours(1)), Instant.now().plus(Duration.ofHours(1)));
+
+        assertThatThrownBy(() -> service.checkIn(staffId, UUID.randomUUID(), ticket.getCode()))
+                .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.getCode()).isEqualTo("TICKET_NOT_IN_EVENT"));
+        verify(events, never()).requireCheckIn(any(), any(), any());
+        assertThat(ticket.getStatus()).isEqualTo(Ticket.Status.ISSUED);
     }
 
     @Test
     void unknownCodeIsNotFoundWithoutAskingEvent() {
         when(tickets.findByCode("nope")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.checkIn(staffId, "nope"))
+        assertThatThrownBy(() -> service.checkIn(staffId, null, "nope"))
                 .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.getCode()).isEqualTo("TICKET_NOT_FOUND"));
         verifyNoInteractions(events);
     }
