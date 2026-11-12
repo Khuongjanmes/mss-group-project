@@ -215,7 +215,7 @@ Lưu ý cho SPA:
 | POST, PUT, DELETE | `/api/categories`, `/api/categories/{id}` | ADMIN | Không xóa được danh mục đang dùng |
 | GET | `/api/venues?city`, `/api/venues/{id}` | Công khai | Địa điểm |
 | POST, PUT, DELETE | `/api/venues`, `/api/venues/{id}` | ADMIN | Thêm, sửa, xóa; không xóa được địa điểm đang dùng |
-| GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket |
+| GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket; thêm `venueName, venueAddress, venueCity` cho email vé của Notification |
 | GET | `/internal/events/{id}/access?userId` | Nội bộ | `canManage, canCheckIn`: Ticket và Order dùng để kiểm tra quyền thay vì so `organizerId` |
 
 "Người quản lý" sự kiện là HOST (`organizerId`), hoặc OWNER/MANAGER của tổ chức sở hữu sự kiện; MEMBER chỉ quản lý sự kiện mình làm HOST. Bảng quyền đầy đủ ở mục 1.2 của [requirement.md](requirement.md).
