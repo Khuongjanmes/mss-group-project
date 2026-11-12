@@ -192,7 +192,7 @@ Lưu ý cho SPA:
 
 | Method | Đường dẫn | Quyền | Mô tả |
 | --- | --- | --- | --- |
-| GET | `/api/events?keyword&category&city&from&to&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601 |
+| GET | `/api/events?keyword&category&city&from&to&timeline&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601. `timeline` (`UPCOMING`, `ONGOING`, `ENDED`) cho các tab của trang sự kiện; `ENDED` gồm cả sự kiện COMPLETED, mới kết thúc trước |
 | GET | `/api/events/{id}` | Công khai | Sự kiện chưa công bố chỉ người quản lý, STAFF và ADMIN xem được |
 | GET | `/api/events/my?status` | Đăng nhập, trừ ADMIN | Sự kiện mình làm HOST, mọi trạng thái |
 | GET | `/api/events/check-in` | Đăng nhập, trừ ADMIN | Sự kiện mình soát vé được (HOST, STAFF, OWNER/MANAGER của tổ chức), đã công bố hoặc vừa kết thúc trong 24 giờ, sớm nhất trước |
