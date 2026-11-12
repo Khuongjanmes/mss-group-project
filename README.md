@@ -12,7 +12,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [eureka-server/](eureka-server/) | 8761 | — | TV1 @YuiGuende | Hoàn thành |
 | [api-gateway/](api-gateway/) | 8080 | — | TV1 @YuiGuende | Hoàn thành |
 | [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 @YuiGuende | Hoàn thành |
-| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Khung |
+| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Email vé (#60); còn báo hủy sự kiện, hộp thông báo |
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
@@ -215,7 +215,7 @@ Lưu ý cho SPA:
 | POST, PUT, DELETE | `/api/categories`, `/api/categories/{id}` | ADMIN | Không xóa được danh mục đang dùng |
 | GET | `/api/venues?city`, `/api/venues/{id}` | Công khai | Địa điểm |
 | POST, PUT, DELETE | `/api/venues`, `/api/venues/{id}` | ADMIN | Thêm, sửa, xóa; không xóa được địa điểm đang dùng |
-| GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket |
+| GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket; thêm `venueName, venueAddress, venueCity` cho email vé của Notification |
 | GET | `/internal/events/{id}/access?userId` | Nội bộ | `canManage, canCheckIn`: Ticket và Order dùng để kiểm tra quyền thay vì so `organizerId` |
 
 "Người quản lý" sự kiện là HOST (`organizerId`), hoặc OWNER/MANAGER của tổ chức sở hữu sự kiện; MEMBER chỉ quản lý sự kiện mình làm HOST. Bảng quyền đầy đủ ở mục 1.2 của [requirement.md](requirement.md).
@@ -300,3 +300,15 @@ Mã lỗi của `POST /api/orders`:
 
   "Trả trước hạn" so `occurredAt` của Payment với `expiresAt`. Message trùng bị bỏ qua theo `messageId` (`processed_messages`, BR-11). Đơn được khóa dòng trước khi đổi trạng thái, nên tiền về đúng lúc người dùng hủy thì chỉ một bên thắng; test `paymentRacingCancelEndsInOneConsistentOutcome`. Mọi message phát sau khi commit.
 - **Sự kiện bị hủy (KB-5):** nhận `EventCancelled` thì mọi đơn PENDING và PAID của sự kiện chuyển CANCELLED, trả lại quota; đơn PAID phát `OrderRefundRequested` (`EVENT_CANCELLED`) để Payment chuyển REFUND_PENDING (BR-10). Đơn EXPIRED, CANCELLED giữ nguyên. Không phát `OrderCancelled` vì Ticket tự hủy vé và nhả vé giữ khi nhận `EventCancelled`. Tiền về sau khi sự kiện bị hủy được hoàn như thanh toán trên đơn CANCELLED.
+
+## Notification
+
+Chưa có API REST (`GET /api/notifications/my` làm ở #62). Service nhận message từ RabbitMQ:
+
+| Message nhận | Notification làm gì |
+| --- | --- |
+| `TicketIssued` (KB-4) | Hỏi Identity email người mua (`/internal/users/{id}`), hỏi Event tên, giờ, địa điểm (`/internal/events/{id}`); gửi email HTML, mỗi vé một ảnh QR nhúng (nội dung QR là mã vé, giống trang "Vé của tôi"); lưu thông báo `TICKET_ISSUED` vào collection `notifications` |
+| `TicketsCancelled` (KB-5) | Chưa làm (#61) |
+
+- **Không gửi trùng (BR-11):** unique index `(messageId, userId)` trên `notifications`; message đã có thông báo thì bỏ qua. Thông báo chỉ được lưu sau khi gửi email xong, nên Identity, Event hoặc máy chủ mail lỗi thì message được thử lại (3 lần) rồi vào `notification-service.events.dlq`, không mất email.
+- **Cấu hình mail:** `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` trong `.env` (xem `.env.example`, ví dụ Gmail với App password). Để trống `MAIL_HOST` thì không gửi email, thông báo vẫn được lưu với `channel = IN_APP`.

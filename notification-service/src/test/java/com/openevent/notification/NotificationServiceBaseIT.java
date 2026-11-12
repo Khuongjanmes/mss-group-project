@@ -32,7 +32,10 @@ import org.testcontainers.rabbitmq.RabbitMQContainer;
 import org.testcontainers.mongodb.MongoDBContainer;
 
 /** Khung service chạy được trên hạ tầng thật: database, RabbitMQ, bảo mật từ common-lib. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"eureka.client.enabled=false"})
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"eureka.client.enabled=false",
+        // Message TicketIssued ở đây không gọi được Identity; không để nó giữ consumer 80 giây như cấu hình thật.
+        "spring.rabbitmq.listener.simple.retry.initial-interval=100ms",
+        "spring.rabbitmq.listener.simple.retry.multiplier=1"})
 class NotificationServiceBaseIT {
 
     static final MongoDBContainer DB = new MongoDBContainer("mongo:7");
