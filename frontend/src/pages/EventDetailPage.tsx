@@ -10,7 +10,7 @@ import { EventDetailView } from '@/events/EventDetailView';
 import { RelatedEvents } from '@/events/RelatedEvents';
 import { TicketTypeList } from '@/events/TicketTypeList';
 
-/** Trang công khai của một sự kiện. Phần loại vé và đặt vé (Ticket, Order) sẽ gắn vào `aside` của thẻ thông tin. */
+/** Trang công khai của một sự kiện. Loại vé và đặt vé (Ticket, Order) nằm ở `aside` của thẻ thông tin. */
 export default function EventDetailPage() {
   const { id = '' } = useParams();
   const [event, setEvent] = useState<EventItem | null>(null);
