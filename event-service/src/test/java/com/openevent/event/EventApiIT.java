@@ -366,6 +366,30 @@ class EventApiIT {
         assertThat(send("GET", "/api/events/" + id, null, null).text("status")).isEqualTo("COMPLETED");
     }
 
+    private List<String> timelineIds(String timeline, String keyword) {
+        return send("GET", "/api/events?size=100&keyword=" + keyword + "&timeline=" + timeline, null, null).body()
+                .path("content").valueStream().map(event -> event.path("id").asString()).toList();
+    }
+
+    @Test
+    void timelineSplitsUpcomingOngoingAndEndedEvents() {
+        String keyword = "timeline" + UUID.randomUUID().toString().substring(0, 8);
+        String upcoming = publish(organizer, futureEvent(keyword + " sắp tới", "Huế"));
+        String ongoing = publish(organizer, futureEvent(keyword + " đang diễn ra", "Huế"));
+        String ended = publish(organizer, futureEvent(keyword + " đã xong", "Huế"));
+        String cancelled = publish(organizer, futureEvent(keyword + " đã hủy", "Huế"));
+        send("PUT", "/api/events/" + cancelled + "/cancel", null, organizer);
+        jdbc.update("update events set start_time = now() - interval '1 hour' where id = ?::uuid", ongoing);
+        jdbc.update("update events set start_time = now() - interval '3 hours', end_time = now() - interval '1 hour', "
+                + "status = 'COMPLETED' where id in (?::uuid, ?::uuid)", ended, cancelled);
+        jdbc.update("update events set status = 'CANCELLED' where id = ?::uuid", cancelled);
+
+        assertThat(timelineIds("UPCOMING", keyword)).containsExactly(upcoming);
+        assertThat(timelineIds("ONGOING", keyword)).containsExactly(ongoing);
+        assertThat(timelineIds("ENDED", keyword)).containsExactly(ended);
+        assertThat(send("GET", "/api/events?timeline=SOMEDAY", null, null).status()).isEqualTo(400);
+    }
+
     private String createOrganization(Caller owner) {
         Response response = send("POST", "/api/organizations", Map.of("name", "FPT Event Club"), owner);
         assertThat(response.status()).isEqualTo(201);

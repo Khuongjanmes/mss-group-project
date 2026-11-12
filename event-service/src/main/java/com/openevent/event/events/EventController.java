@@ -54,9 +54,11 @@ public class EventController {
             @RequestParam(required = false) @Size(max = 100) String city,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(required = false) EventTimeline timeline,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return eventService.searchPublished(new EventSearch(keyword, category, city, from, to, null, null, null), page, size);
+        return eventService.searchPublished(new EventSearch(keyword, category, city, from, to, null, null, null),
+                timeline, page, size);
     }
 
     @GetMapping("/check-in")
