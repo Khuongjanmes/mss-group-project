@@ -15,6 +15,7 @@ import LoginPage from './pages/LoginPage';
 import MockPaymentPage from './pages/MockPaymentPage';
 import MyOrdersPage from './pages/MyOrdersPage';
 import MyTicketsPage from './pages/MyTicketsPage';
+import NotificationsPage from './pages/NotificationsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PaymentResultPage from './pages/PaymentResultPage';
 import CheckInPage from './organizer/CheckInPage';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'orders', element: <MyOrdersPage /> },
           { path: 'tickets', element: <MyTicketsPage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
           { path: 'payments/result', element: <PaymentResultPage /> },
           { path: 'payments/:id/mock', element: <MockPaymentPage /> },
         ],
