@@ -1,8 +1,9 @@
-import { LogOut, Menu } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, LogOut, Menu } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router';
 
 import { signOut } from '@/api/auth';
 import { hasRole, type Session, useSession } from '@/auth/session';
+import { UserAvatar } from '@/components/common/user';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,83 +16,84 @@ import {
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/notifications/NotificationBell';
 
-/** Link của người đã đăng nhập; admin không mua vé nên chỉ có trang quản trị. */
-function accountLinks(session: Session): { to: string; label: string }[] {
-  if (hasRole(session, 'ADMIN')) return [{ to: '/admin', label: 'Quản trị' }];
+type NavItem = { title: string; to: string };
+
+/** Menu chính; admin không mua vé nên chỉ có trang quản trị. */
+function navFor(session: Session | null): NavItem[] {
+  const events = { title: 'Sự kiện', to: '/events' };
+  if (!session) return [events];
+  if (hasRole(session, 'ADMIN')) return [events, { title: 'Quản trị', to: '/admin' }];
   return [
-    { to: '/orders', label: 'Đơn của tôi' },
-    { to: '/tickets', label: 'Vé của tôi' },
-    { to: '/organizer', label: 'Quản lý sự kiện' },
+    events,
+    { title: 'Vé của tôi', to: '/tickets' },
+    { title: 'Đơn của tôi', to: '/orders' },
+    { title: 'Quản lý sự kiện', to: '/organizer' },
   ];
 }
 
+/** Header theo StudentHeader của openevent: logo · menu ngang gạch chân cam · tài khoản; dưới `lg` menu gom vào ☰. */
 export default function Layout() {
   const session = useSession();
-  const links = session ? accountLinks(session) : [];
+  const nav = navFor(session);
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b bg-card">
-        <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-          <Link to="/" className="text-lg font-bold text-primary">
-            OpenEvent
+      <header className="sticky -top-px z-40 border-b bg-card">
+        <div className="container mx-auto flex h-14 max-w-6xl items-center gap-10 px-4 lg:h-16">
+          <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="OpenEvent">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground lg:size-9">
+              <CalendarDays className="size-4 lg:size-5" aria-hidden />
+            </span>
+            <span className="text-lg font-bold">OpenEvent</span>
           </Link>
-          <NavLink
-            to="/events"
-            className={({ isActive }) =>
-              cn('mr-auto text-sm font-medium transition-colors hover:text-foreground', isActive ? 'text-foreground' : 'text-muted-foreground')
-            }
-          >
-            Sự kiện
-          </NavLink>
-          {session ? (
-            <>
-              {/* Chuông hiện cả trên điện thoại; admin không mua vé nên không có thông báo. */}
-              {!hasRole(session, 'ADMIN') && <NotificationBell />}
-              {/* Màn hình rộng: link nằm ngang. */}
-              <div className="hidden items-center gap-4 sm:flex">
-                {links.map((link) => (
-                  <Button key={link.to} asChild variant="ghost" size="sm">
-                    <Link to={link.to}>{link.label}</Link>
-                  </Button>
-                ))}
-                <span className="text-sm text-muted-foreground">{session.user.fullName}</span>
-                <Button variant="outline" size="sm" onClick={() => void signOut()}>
-                  Đăng xuất
+
+          <nav aria-label="Điều hướng chính" className="hidden h-full flex-1 items-center gap-8 lg:flex">
+            {nav.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'flex h-full items-center border-b-2 text-sm font-medium transition-colors',
+                    isActive ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )
+                }
+              >
+                {item.title}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2">
+            {session ? (
+              <>
+                {!hasRole(session, 'ADMIN') && <NotificationBell />}
+                <AccountMenu session={session} />
+              </>
+            ) : (
+              <Button asChild variant="ghost">
+                <Link to="/login">Đăng nhập</Link>
+              </Button>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Mở menu">
+                  <Menu className="size-5" />
                 </Button>
-              </div>
-              {/* Điện thoại: gom vào một menu để thanh điều hướng không vỡ dòng. */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon-sm" className="sm:hidden" aria-label="Mở menu tài khoản">
-                    <Menu />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-56">
-                  <DropdownMenuLabel className="grid font-normal leading-tight">
-                    <span className="truncate font-medium">{session.user.fullName}</span>
-                    <span className="truncate text-xs text-muted-foreground">{session.user.email}</span>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {links.map((link) => (
-                    <DropdownMenuItem key={link.to} asChild>
-                      <Link to={link.to}>{link.label}</Link>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => void signOut()}>
-                    <LogOut />
-                    Đăng xuất
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {nav.map((item) => (
+                  <DropdownMenuItem key={item.to} asChild>
+                    <NavLink to={item.to} className={({ isActive }) => cn(isActive && 'font-semibold text-accent-foreground')}>
+                      {item.title}
+                    </NavLink>
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : (
-            <Button asChild size="sm">
-              <Link to="/login">Đăng nhập</Link>
-            </Button>
-          )}
-        </nav>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <Outlet />
@@ -100,5 +102,40 @@ export default function Layout() {
         © {new Date().getFullYear()} OpenEvent
       </footer>
     </div>
+  );
+}
+
+/** Theo HeaderAccountMenu của openevent: avatar và tên, menu có email, trang quản lý, đăng xuất. */
+function AccountMenu({ session }: { session: Session }) {
+  const user = { name: session.user.fullName, email: session.user.email, avatarUrl: session.user.avatarUrl ?? undefined };
+  const admin = hasRole(session, 'ADMIN');
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-10 gap-2 px-2" aria-label="Tài khoản">
+          <UserAvatar user={user} />
+          <span className="hidden max-w-40 truncate sm:inline">{user.name}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuLabel className="grid font-normal">
+          <span className="truncate font-medium">{user.name}</span>
+          <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to={admin ? '/admin' : '/organizer'}>
+            <LayoutDashboard />
+            {admin ? 'Quản trị' : 'Quản lý sự kiện'}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void signOut()}>
+          <LogOut />
+          Đăng xuất
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
