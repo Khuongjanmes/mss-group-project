@@ -3,7 +3,7 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
 import { errorMessage } from '@/api/client';
-import { formatMoney, getPayment, type Payment, PAYMENT_STATUS_LABELS } from '@/api/payments';
+import { formatMoney, getPayment, type Payment, PAYMENT_STATUS_LABELS, refundReasonLabel } from '@/api/payments';
 import { LoadingState } from '@/components/common/feedback';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -60,7 +60,15 @@ export default function PaymentResultPage() {
   switch (payment.status) {
     case 'SUCCESS':
       return (
-        <Result icon={<CheckCircle2 className="size-12 text-success" />} title={`Đã thanh toán ${amount}`}>
+        <Result
+          icon={<CheckCircle2 className="size-12 text-success" />}
+          title={`Đã thanh toán ${amount}`}
+          action={
+            <Button asChild className="mt-1">
+              <Link to="/tickets">Xem vé của tôi</Link>
+            </Button>
+          }
+        >
           Vé sẽ được phát hành và gửi qua email trong ít phút.
         </Result>
       );
@@ -81,20 +89,21 @@ export default function PaymentResultPage() {
     default:
       return (
         <Result icon={<Clock className="size-12 text-muted-foreground" />} title={PAYMENT_STATUS_LABELS[payment.status]}>
-          Giao dịch {amount} {payment.refundReason ? `(${payment.refundReason})` : ''}{' '}
+          Giao dịch {amount} {payment.refundReason ? `(${refundReasonLabel(payment.refundReason)})` : ''}{' '}
           {payment.status === 'REFUNDED' ? 'đã được hoàn lại cho bạn.' : 'sẽ được hoàn lại cho bạn.'}
         </Result>
       );
   }
 }
 
-function Result({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+function Result({ icon, title, children, action }: { icon: ReactNode; title: string; children: ReactNode; action?: ReactNode }) {
   return (
     <Card className="mx-auto max-w-md">
       <CardContent className="flex flex-col items-center gap-3 text-center">
         {icon}
         <h1 className="text-xl font-bold">{title}</h1>
         <div className="text-sm text-muted-foreground">{children}</div>
+        {action}
         <Link to="/events" className="text-sm font-medium text-accent-foreground hover:underline">
           Xem sự kiện
         </Link>

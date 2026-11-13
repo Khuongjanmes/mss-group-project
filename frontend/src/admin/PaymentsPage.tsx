@@ -10,6 +10,7 @@ import {
   PAYMENT_STATUS_BADGE,
   PAYMENT_STATUS_LABELS,
   type PaymentStatus,
+  refundReasonLabel,
   searchPayments,
 } from '@/api/payments';
 import type { PageResponse } from '@/api/types';
@@ -137,7 +138,7 @@ export default function PaymentsPage() {
                         <Badge variant={PAYMENT_STATUS_BADGE[payment.status]}>{PAYMENT_STATUS_LABELS[payment.status]}</Badge>
                         {payment.refundReason && (
                           <p className="mt-1 max-w-56 truncate text-xs text-muted-foreground" title={payment.refundReason}>
-                            {payment.refundReason}
+                            {refundReasonLabel(payment.refundReason)}
                           </p>
                         )}
                       </TableCell>

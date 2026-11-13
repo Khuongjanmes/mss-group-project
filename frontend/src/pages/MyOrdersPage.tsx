@@ -14,7 +14,7 @@ import {
   ORDER_STATUS_LABELS,
   payOrder,
 } from '@/api/orders';
-import { formatMoney } from '@/api/payments';
+import { formatMoney, myPayments, type PaymentStatus } from '@/api/payments';
 import { listTicketTypes } from '@/api/tickets';
 import type { PageResponse } from '@/api/types';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/feedback';
@@ -48,6 +48,8 @@ export default function MyOrdersPage() {
   const [page, setPage] = useState(0);
   const [orders, setOrders] = useState<PageResponse<Order> | null>(null);
   const [events, setEvents] = useState<Record<string, EventInfo>>({});
+  /** Đơn đã hủy mà đã thanh toán: trạng thái hoàn tiền, lấy từ Payment. */
+  const [refunds, setRefunds] = useState<Record<string, PaymentStatus>>({});
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [paying, setPaying] = useState<string | null>(null);
@@ -62,6 +64,20 @@ export default function MyOrdersPage() {
         if (ignore) return;
         setOrders(data);
         void loadEvents(data.content).then((info) => !ignore && setEvents((current) => ({ ...current, ...info })));
+        const cancelled = data.content.filter((order) => order.status === 'CANCELLED' || order.status === 'EXPIRED');
+        if (cancelled.length > 0) {
+          // Lỗi thì chỉ thiếu badge hoàn tiền, đơn vẫn hiện.
+          myPayments(cancelled.map((order) => order.id))
+            .then((payments) => {
+              if (ignore) return;
+              const found: Record<string, PaymentStatus> = {};
+              for (const p of payments) {
+                if (p.status === 'REFUND_PENDING' || p.status === 'REFUNDED') found[p.orderId] ??= p.status;
+              }
+              setRefunds((current) => ({ ...current, ...found }));
+            })
+            .catch(() => undefined);
+        }
       })
       .catch((err: unknown) => !ignore && setError(errorMessage(err)));
     return () => {
@@ -154,6 +170,11 @@ export default function MyOrdersPage() {
                       <Badge variant={ORDER_STATUS_BADGE[order.status]} size="label">
                         {ORDER_STATUS_LABELS[order.status]}
                       </Badge>
+                      {refunds[order.id] && (
+                        <Badge variant={refunds[order.id] === 'REFUNDED' ? 'success' : 'warning'} size="label">
+                          {refunds[order.id] === 'REFUNDED' ? 'Đã hoàn tiền' : 'Đang hoàn tiền'}
+                        </Badge>
+                      )}
                       {order.status === 'PENDING' && (
                         <Badge variant={payable ? 'warning' : 'neutral'} size="label">
                           <Clock aria-hidden />
