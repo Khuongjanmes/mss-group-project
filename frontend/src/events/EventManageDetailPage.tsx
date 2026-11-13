@@ -39,7 +39,7 @@ export default function EventManageDetailPage({ area }: { area: 'organizer' | 'a
   const [action, setAction] = useState<EventAction | null>(null);
   const listPath = `/${area}/events`;
   const session = useSession();
-  const organizations = useMyOrganizations();
+  const organizations = useMyOrganizations(area === 'organizer');
   const { hash } = useLocation();
 
   useEffect(() => {

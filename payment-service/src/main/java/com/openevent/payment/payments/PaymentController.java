@@ -1,6 +1,7 @@
 package com.openevent.payment.payments;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -32,6 +33,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.JsonNode;
 
@@ -49,6 +51,13 @@ public class PaymentController {
     public PaymentStartResponse start(@AuthenticationPrincipal AuthenticatedUser caller,
             @Valid @RequestBody PaymentRequest request, HttpServletRequest http) {
         return paymentService.start(caller.id(), request.orderId(), clientIp(http));
+    }
+
+    /** Giao dịch của tôi cho các đơn {@code orderId} (tối đa 100); đơn của người khác không trả về. */
+    @GetMapping("/my")
+    public List<PaymentResponse> mine(@AuthenticationPrincipal AuthenticatedUser caller,
+            @RequestParam("orderId") @Size(min = 1, max = 100) List<UUID> orderIds) {
+        return paymentService.mine(caller.id(), orderIds);
     }
 
     @GetMapping("/{id}")

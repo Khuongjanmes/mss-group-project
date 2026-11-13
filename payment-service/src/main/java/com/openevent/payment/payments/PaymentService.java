@@ -109,6 +109,13 @@ public class PaymentService {
         applyPayOs(notice, payload.toString());
     }
 
+    /** Giao dịch của chính người gọi theo đơn, mới nhất trước: trang Đơn của tôi hiện trạng thái hoàn tiền. */
+    @Transactional(readOnly = true)
+    public List<PaymentResponse> mine(UUID userId, List<UUID> orderIds) {
+        return payments.findAllByUserIdAndOrderIdInOrderByCreatedAtDesc(userId, orderIds).stream()
+                .map(PaymentResponse::from).toList();
+    }
+
     /** Admin #4: mới nhất trước, lọc theo trạng thái. */
     @Transactional(readOnly = true)
     public PageResponse<PaymentResponse> search(PaymentStatus status, int page, int size) {

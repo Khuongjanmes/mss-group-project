@@ -1,5 +1,6 @@
 package com.openevent.payment.payments;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,4 +27,6 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     boolean existsByOrderIdAndStatus(UUID orderId, PaymentStatus status);
 
     Page<Payment> findAllByStatus(PaymentStatus status, Pageable pageable);
+
+    List<Payment> findAllByUserIdAndOrderIdInOrderByCreatedAtDesc(UUID userId, Collection<UUID> orderIds);
 }

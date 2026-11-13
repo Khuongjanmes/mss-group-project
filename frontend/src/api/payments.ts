@@ -66,6 +66,22 @@ export async function searchPayments(params: { status?: PaymentStatus; page?: nu
   return (await api.get<PageResponse<Payment>>('/api/payments', { params })).data
 }
 
+/** Giao dịch của tôi cho các đơn này (trang Đơn của tôi, để biết đơn bị hủy đã được hoàn tiền chưa). */
+export async function myPayments(orderIds: string[]): Promise<Payment[]> {
+  return (await api.get<Payment[]>('/api/payments/my', { params: { orderId: orderIds }, paramsSerializer: { indexes: null } })).data
+}
+
+/** Order gửi lý do hoàn tiền dạng mã; lý do khác (nhập tay) giữ nguyên. */
+const REFUND_REASONS: Record<string, string> = {
+  EVENT_CANCELLED: 'Sự kiện bị hủy',
+  ORDER_EXPIRED: 'Thanh toán sau khi đơn đã hết hạn',
+  ORDER_CANCELLED: 'Thanh toán sau khi đơn đã bị hủy',
+}
+
+export function refundReasonLabel(reason: string | null): string | null {
+  return reason ? (REFUND_REASONS[reason] ?? reason) : null
+}
+
 export async function markPaymentRefunded(id: string): Promise<Payment> {
   return (await api.put<Payment>(`/api/payments/${id}/refunded`)).data
 }
