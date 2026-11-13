@@ -2312,6 +2312,127 @@
           }
         },
         {
+          "name": "Tab sắp tới",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('sự kiện chưa bắt đầu nằm ở Sắp tới', () => pm.expect(pm.response.json().content.map((e) => e.id)).to.include(pm.collectionVariables.get('eventId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events?keyword={{runId}}&timeline=UPCOMING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "{{runId}}"
+                },
+                {
+                  "key": "timeline",
+                  "value": "UPCOMING"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tab đang diễn ra",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('chưa có ở Đang diễn ra', () => pm.expect(pm.response.json().content.map((e) => e.id)).to.not.include(pm.collectionVariables.get('eventId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events?keyword={{runId}}&timeline=ONGOING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "{{runId}}"
+                },
+                {
+                  "key": "timeline",
+                  "value": "ONGOING"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tab sai giá trị",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events?timeline=SOMEDAY",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "timeline",
+                  "value": "SOMEDAY"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "Thêm STAFF",
           "event": [
             {
@@ -2401,6 +2522,86 @@
                 "events",
                 "{{eventId}}",
                 "staff"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sự kiện STAFF soát vé được",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('có sự kiện vừa được phân công', () => pm.expect(pm.response.json().map((e) => e.id)).to.include(pm.collectionVariables.get('eventId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "check-in"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Người mua không có sự kiện soát vé",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('danh sách rỗng', () => pm.expect(pm.response.json()).to.have.length(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "check-in"
               ]
             }
           }
@@ -3859,6 +4060,238 @@
           }
         },
         {
+          "name": "Thông báo vé đã phát",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('tries:' + pm.info.requestName)) setTimeout(() => {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const key = 'tries:' + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(pm.response.json().content.some((n) => n.type === 'TICKET_ISSUED')) && n < 20) {",
+                  "pm.collectionVariables.set(key, n + 1);",
+                  "postman.setNextRequest(pm.info.requestName);",
+                  "return;",
+                  "}",
+                  "pm.collectionVariables.unset(key);",
+                  "const issued = pm.response.json().content.find((x) => x.type === 'TICKET_ISSUED');",
+                  "pm.test('có TICKET_ISSUED chưa đọc', () => { pm.expect(issued).to.exist; pm.expect(issued.read).to.be.false; });",
+                  "pm.collectionVariables.set('notificationId', issued.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/my?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "my"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Số thông báo chưa đọc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ít nhất 1', () => pm.expect(pm.response.json().unreadCount).to.be.at.least(1));",
+                  "pm.collectionVariables.set('unreadBefore', pm.response.json().unreadCount);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/my/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "my",
+                "unread-count"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Đánh dấu đã đọc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chưa đọc giảm 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('giảm 1', () => pm.expect(pm.response.json().unreadCount).to.eql(Number(pm.collectionVariables.get('unreadBefore')) - 1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/my/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "my",
+                "unread-count"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Không đọc được thông báo của người khác",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          }
+        },
+        {
           "name": "Admin xem giao dịch",
           "event": [
             {
@@ -3970,15 +4403,15 @@
           }
         },
         {
-          "name": "STAFF check-in",
+          "name": "Vé của sự kiện khác",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('CHECKED_IN', () => pm.expect(pm.response.json().status).to.eql('CHECKED_IN'));"
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('code TICKET_NOT_IN_EVENT', () => pm.expect(pm.response.json().code).to.eql('TICKET_NOT_IN_EVENT'));"
                 ]
               }
             }
@@ -4014,7 +4447,63 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"{{ticketCode}}\"\n}",
+              "raw": "{\n  \"code\": \"{{ticketCode}}\",\n  \"eventId\": \"00000000-0000-0000-0000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "STAFF check-in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('CHECKED_IN', () => pm.expect(r.status).to.eql('CHECKED_IN'));",
+                  "pm.test('kèm người mua để đối chiếu', () => pm.expect(r.ownerEmail).to.eql(pm.collectionVariables.get('buyerEmail')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tickets/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tickets",
+                "check-in"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{ticketCode}}\",\n  \"eventId\": \"{{eventId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4032,7 +4521,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
-                  "pm.test('code ALREADY_CHECKED_IN', () => pm.expect(pm.response.json().code).to.eql('ALREADY_CHECKED_IN'));"
+                  "pm.test('code ALREADY_CHECKED_IN', () => pm.expect(pm.response.json().code).to.eql('ALREADY_CHECKED_IN'));",
+                  "pm.test('báo người đã soát', () => pm.expect(pm.response.json().message).to.include('bởi Postman nhân viên soát vé'));"
                 ]
               }
             }
@@ -4068,7 +4558,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"{{ticketCode}}\"\n}",
+              "raw": "{\n  \"code\": \"{{ticketCode}}\",\n  \"eventId\": \"{{eventId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4335,6 +4825,73 @@
                 "api",
                 "tickets",
                 "my"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Thông báo sự kiện bị hủy",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('tries:' + pm.info.requestName)) setTimeout(() => {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const key = 'tries:' + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(pm.response.json().content.some((n) => n.type === 'EVENT_CANCELLED')) && n < 20) {",
+                  "pm.collectionVariables.set(key, n + 1);",
+                  "postman.setNextRequest(pm.info.requestName);",
+                  "return;",
+                  "}",
+                  "pm.collectionVariables.unset(key);",
+                  "pm.test('có EVENT_CANCELLED', () => pm.expect(pm.response.json().content.map((n) => n.type)).to.include('EVENT_CANCELLED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/my?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "my"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             }
           }

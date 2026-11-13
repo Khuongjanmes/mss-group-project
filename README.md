@@ -109,7 +109,7 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 ./mvnw -pl order-service -am verify     # một service
 ```
 
-**Postman:** import [postman/OpenEvent.postman_collection.json](postman/OpenEvent.postman_collection.json), điền `adminPassword` (giá trị `BOOTSTRAP_ADMIN_PASSWORD`) ở tab *Variables*, ô *Current value*, rồi **Run collection**, bỏ chọn thư mục *Thủ công*. Collection tự tạo tài khoản, sự kiện, loại vé, đơn và chạy hết luồng đặt vé, thanh toán, check-in, hủy sự kiện, hoàn tiền (khoảng 100 request). Bước thanh toán dùng cổng giả lập, nên để trống `PAYOS_*` và `VNPAY_*` trong `.env`. Chạy bằng dòng lệnh:
+**Postman:** import [postman/OpenEvent.postman_collection.json](postman/OpenEvent.postman_collection.json), điền `adminPassword` (giá trị `BOOTSTRAP_ADMIN_PASSWORD`) ở tab *Variables*, ô *Current value*, rồi **Run collection**, bỏ chọn thư mục *Thủ công*. Collection tự tạo tài khoản, sự kiện, loại vé, đơn và chạy hết luồng đặt vé, thanh toán, check-in, thông báo, hủy sự kiện, hoàn tiền (khoảng 110 request). Bước thanh toán dùng cổng giả lập, nên để trống `PAYOS_*` và `VNPAY_*` trong `.env`. Chạy bằng dòng lệnh:
 
 ```bash
 npx newman run postman/OpenEvent.postman_collection.json --env-var adminPassword=<mật khẩu admin> \
