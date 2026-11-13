@@ -3,7 +3,7 @@ import { CameraOff, Keyboard } from 'lucide-react';
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { errorMessage } from '@/api/client';
+import { errorCode, errorMessage } from '@/api/client';
 import { type EventItem, getEvent } from '@/api/events';
 import { ticketStats } from '@/api/tickets';
 import { ErrorState, LoadingState } from '@/components/common/feedback';
@@ -31,21 +31,27 @@ export default function CheckInScanPage() {
   const [error, setError] = useState<string>();
   const [count, setCount] = useState<{ checkedIn: number; sold: number }>();
   const [cameraError, setCameraError] = useState<string>();
+  // STAFF không xem được số liệu (403): biết rồi thì thôi không hỏi lại sau mỗi lần quét.
+  const [canSeeStats, setCanSeeStats] = useState(true);
 
   // Chỉ người quản lý xem được số liệu; STAFF nhận 403 thì ẩn dòng đếm.
   const refreshCount = useCallback(() => {
+    if (!canSeeStats) return;
     ticketStats(eventId)
       .then((stats) => setCount({
         checkedIn: stats.reduce((n, s) => n + s.checkedIn, 0),
         sold: stats.reduce((n, s) => n + s.soldQuantity, 0),
       }))
-      .catch(() => setCount(undefined));
-  }, [eventId]);
+      .catch((err: unknown) => {
+        setCount(undefined);
+        if (errorCode(err) !== undefined) setCanSeeStats(false);
+      });
+  }, [eventId, canSeeStats]);
 
   useEffect(() => {
     getEvent(eventId).then(setEvent).catch((err: unknown) => setError(errorMessage(err)));
-    refreshCount();
-  }, [eventId, refreshCount]);
+  }, [eventId]);
+  useEffect(refreshCount, [refreshCount]);
 
   const scan = useScanCheckIn(eventId, refreshCount);
 
