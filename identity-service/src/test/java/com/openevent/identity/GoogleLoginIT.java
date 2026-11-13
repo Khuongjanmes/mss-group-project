@@ -27,6 +27,14 @@ class GoogleLoginIT extends IdentityIntegrationTest {
     }
 
     @Test
+    void spaReadsTheClientIdWithoutLoggingIn() {
+        Response response = send("GET", "/api/auth/google/config", null, null);
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().has("clientId")).isTrue();
+    }
+
+    @Test
     void firstLoginCreatesAttendeeWithoutPassword() {
         String email = uniqueEmail();
         String subject = UUID.randomUUID().toString();

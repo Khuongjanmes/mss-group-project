@@ -1,7 +1,7 @@
 import { api } from './client'
 import type { PageResponse } from './types'
 
-export type NotificationType = 'TICKET_ISSUED' | 'EVENT_CANCELLED'
+export type NotificationType = 'TICKET_ISSUED' | 'EVENT_CANCELLED' | 'PASSWORD_RESET'
 
 /** NotificationResponse của Notification Service. */
 export interface AppNotification {
@@ -23,6 +23,7 @@ export interface NotificationPage extends PageResponse<AppNotification> {
 export const NOTIFICATION_TARGET: Record<NotificationType, string> = {
   TICKET_ISSUED: '/tickets',
   EVENT_CANCELLED: '/orders',
+  PASSWORD_RESET: '/events',
 }
 
 /** Thông báo của người đang đăng nhập, mới nhất trước, kèm số chưa đọc. */

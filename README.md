@@ -183,6 +183,9 @@ Tất cả đi qua Gateway. Chi tiết request và response xem Swagger của Id
 | POST | `/api/auth/register` | Công khai | Đăng ký, trả token |
 | POST | `/api/auth/login` | Công khai | Đăng nhập |
 | POST | `/api/auth/google` | Công khai | Đăng nhập bằng `idToken` của Google Identity Services |
+| GET | `/api/auth/google/config` | Công khai | `{clientId}` cho nút Google của SPA (đọc lúc chạy); rỗng khi chưa đặt `GOOGLE_CLIENT_ID`. Google Cloud Console cần Authorized JavaScript origins có `http://localhost:5173` và domain khi deploy |
+| POST | `/api/auth/forgot-password` | Công khai | `{"email"}`: luôn 202 (không cho dò email). Tài khoản dùng mật khẩu, không bị khóa thì tạo token dùng một lần, hết hạn sau 30 phút (chỉ lưu bản băm), phát `PasswordResetRequested` để Notification gửi email có link `<FRONTEND_URL>/reset-password?token=`. Cần `MAIL_*` trong `.env` |
+| POST | `/api/auth/reset-password` | Công khai | `{"token", "newPassword"}`: đổi mật khẩu, thu hồi mọi refresh token; token sai, đã dùng hoặc hết hạn trả 400 `RESET_TOKEN_INVALID` |
 | POST | `/api/auth/refresh` | Công khai | Đổi refresh token lấy cặp token mới |
 | POST | `/api/auth/logout` | Công khai | Thu hồi refresh token |
 | GET, PUT | `/api/users/me` | Đăng nhập | Xem, sửa hồ sơ |
