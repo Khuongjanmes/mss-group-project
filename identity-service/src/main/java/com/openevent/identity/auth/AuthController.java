@@ -9,11 +9,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.openevent.identity.auth.dto.AuthResponse;
+import com.openevent.identity.auth.dto.ForgotPasswordRequest;
 import com.openevent.identity.auth.dto.GoogleClientConfig;
 import com.openevent.identity.auth.dto.GoogleLoginRequest;
 import com.openevent.identity.auth.dto.LoginRequest;
 import com.openevent.identity.auth.dto.RefreshRequest;
 import com.openevent.identity.auth.dto.RegisterRequest;
+import com.openevent.identity.auth.dto.ResetPasswordRequest;
 import com.openevent.identity.auth.google.GoogleProperties;
 
 import jakarta.validation.Valid;
@@ -27,6 +29,7 @@ public class AuthController {
     private final AuthService authService;
     private final RefreshTokenService refreshTokens;
     private final GoogleProperties google;
+    private final PasswordResetService passwordReset;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -37,6 +40,19 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    /** Luôn 202 dù email có tài khoản hay không, để không dò được email nào đã đăng ký. */
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordReset.requestReset(request.email());
+    }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordReset.reset(request.token(), request.newPassword());
     }
 
     /** SPA đọc lúc chạy để vẽ nút Google, nên chỉ cần cấu hình GOOGLE_CLIENT_ID một chỗ. */

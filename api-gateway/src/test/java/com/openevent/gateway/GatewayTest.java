@@ -201,7 +201,8 @@ class GatewayTest {
     @ParameterizedTest
     @CsvSource({
             "POST, /api/auth/register", "POST, /api/auth/login", "POST, /api/auth/google",
-            "POST, /api/auth/refresh", "POST, /api/auth/logout",
+            "POST, /api/auth/refresh", "POST, /api/auth/logout", "POST, /api/auth/forgot-password",
+            "POST, /api/auth/reset-password",
             "GET, /api/events", "GET, /api/events/123", "GET, /api/categories", "GET, /api/venues",
             "GET, /api/ticket-types", "GET, /api/ticket-types/123", "GET, /api/auth/google/config"})
     void publicPathNeedsNoToken(String method, String path) throws Exception {
