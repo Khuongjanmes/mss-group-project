@@ -109,7 +109,7 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 ./mvnw -pl order-service -am verify     # một service
 ```
 
-**Postman:** import [postman/OpenEvent.postman_collection.json](postman/OpenEvent.postman_collection.json), điền `adminPassword` (giá trị `BOOTSTRAP_ADMIN_PASSWORD`) ở tab *Variables*, ô *Current value*, rồi **Run collection**, bỏ chọn thư mục *Thủ công*. Collection tự tạo tài khoản, sự kiện, loại vé, đơn và chạy hết luồng đặt vé, thanh toán, check-in, thông báo, hủy sự kiện, hoàn tiền (khoảng 110 request). Bước thanh toán dùng cổng giả lập, nên để trống `PAYOS_*` và `VNPAY_*` trong `.env`. Chạy bằng dòng lệnh:
+**Postman:** import [postman/OpenEvent.postman_collection.json](postman/OpenEvent.postman_collection.json), điền `adminPassword` (giá trị `BOOTSTRAP_ADMIN_PASSWORD`) ở tab *Variables*, ô *Current value*, rồi **Run collection**, bỏ chọn thư mục *Thủ công*. Collection tự tạo tài khoản, sự kiện, loại vé, đơn và chạy hết luồng đặt vé, thanh toán, check-in, thông báo, hủy sự kiện, hoàn tiền (khoảng 110 request). Bước thanh toán dùng cổng giả lập: trước khi chạy, bật cổng giả lập bằng **Git Bash** (PowerShell, cmd không gán được biến rỗng) `PAYOS_CLIENT_ID= PAYOS_API_KEY= PAYOS_CHECKSUM_KEY= VNPAY_TMN_CODE= VNPAY_HASH_SECRET= docker compose up -d payment-service`, chạy xong thì `docker compose up -d payment-service` để về cấu hình thật. Trong Runner của Postman Desktop, **bỏ tick Keep variable values**, nếu không lần chạy sau dùng lại token của lần trước và hỏng các bước kiểm tra người dùng. Chạy bằng dòng lệnh:
 
 ```bash
 npx newman run postman/OpenEvent.postman_collection.json --env-var adminPassword=<mật khẩu admin> \
@@ -245,6 +245,7 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 | POST | `/api/payments/{id}/mock-result` | Người trả tiền | `{"success"}`: chỉ với giao dịch cổng giả lập |
 | GET | `/api/payments?status&page&size` | ADMIN | Mọi giao dịch, mới nhất trước |
 | PUT | `/api/payments/{id}/refunded` | ADMIN | REFUND_PENDING → REFUNDED, sau khi đã hoàn tiền thủ công |
+| GET | `/api/payments/my?orderId=…&orderId=…` | Đăng nhập | Giao dịch của tôi cho các đơn này (tối đa 100), mới nhất trước; đơn của người khác không trả về. Trang Đơn của tôi dùng để hiện Đang hoàn tiền / Đã hoàn tiền |
 
 - **Cổng thanh toán**, chọn theo thứ tự:
   1. **payOS** khi có đủ `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`: người mua quét VietQR, tiền vào tài khoản ngân hàng đã liên kết ở my.payos.vn. payOS **không có sandbox**, thử bằng số tiền nhỏ.
