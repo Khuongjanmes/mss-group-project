@@ -7,11 +7,26 @@ spring:
     name: notification-service
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/notification_db}
+    representation:
+      # userId, messageId là UUID; lưu theo chuẩn để mọi driver đọc giống nhau.
+      uuid: standard
+  data:
+    mongodb:
+      # Tạo unique index (messageId, userId) của collection notifications khi khởi động (BR-11).
+      auto-index-creation: true
+  # MAIL_HOST để trống thì không gửi email, chỉ lưu thông báo (xem EmailSender).
   mail:
-    host: ${MAIL_HOST:localhost}
+    host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+    properties:
+      "[mail.smtp.auth]": ${MAIL_SMTP_AUTH:true}
+      "[mail.smtp.starttls.enable]": ${MAIL_STARTTLS:true}
+      # Máy chủ mail treo không giữ consumer mãi: hết giờ thì lỗi, message được thử lại.
+      "[mail.smtp.connectiontimeout]": 5000
+      "[mail.smtp.timeout]": 10000
+      "[mail.smtp.writetimeout]": 10000
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -19,11 +34,16 @@ spring:
     password: ${RABBITMQ_PASSWORD:openevent}
     listener:
       simple:
-        # Message lỗi được thử lại 3 lần rồi chuyển vào dead-letter queue, không lặp vô hạn.
+        # Message lỗi được thử lại rồi chuyển vào dead-letter queue, không lặp vô hạn.
         default-requeue-rejected: false
         retry:
           enabled: true
-          max-retries: 2
+          # Gửi email phụ thuộc máy chủ mail bên ngoài: chờ 2, 6, 18, 54 giây giữa các lần (tổng khoảng 80 giây)
+          # để SMTP hoặc Identity lỗi ngắn không đẩy email vào dead-letter queue.
+          max-retries: 4
+          initial-interval: 2s
+          multiplier: 3
+          max-interval: 60s
   cloud:
     openfeign:
       circuitbreaker:
@@ -37,6 +57,13 @@ spring:
       resilience4j:
         # Thời gian chờ do read-timeout của Feign quyết định, không dùng giới hạn 1 giây mặc định.
         disable-time-limiter: true
+
+openevent:
+  # Địa chỉ SPA để chèn nút "Xem vé của tôi" vào email; trống thì email không có link.
+  frontend-url: ${FRONTEND_URL:}
+  mail:
+    # Trống thì dùng MAIL_USERNAME (Gmail chỉ cho gửi bằng địa chỉ của tài khoản đăng nhập).
+    from: ${MAIL_FROM:}
 
 eureka:
   client:

@@ -10,14 +10,18 @@ import Layout from './components/Layout';
 import EventManageDetailPage from './events/EventManageDetailPage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventsPage from './pages/EventsPage';
-import HomePage from './pages/HomePage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import RegisterPage from './pages/RegisterPage';
 import MockPaymentPage from './pages/MockPaymentPage';
 import MyOrdersPage from './pages/MyOrdersPage';
 import MyTicketsPage from './pages/MyTicketsPage';
+import NotificationsPage from './pages/NotificationsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PaymentResultPage from './pages/PaymentResultPage';
-import CheckInPage from './organizer/CheckInPage';
+import CheckInEventsPage from './organizer/check-in/CheckInEventsPage';
+import CheckInScanPage from './organizer/check-in/CheckInScanPage';
 import EventFormPage from './organizer/EventFormPage';
 import OrganizerEventsPage from './organizer/OrganizerEventsPage';
 import OrganizerLayout from './organizer/OrganizerLayout';
@@ -27,12 +31,17 @@ import OrganizationsPage from './organizer/organizations/OrganizationsPage';
 // Trang công khai thêm vào children của Layout; trang quản trị thêm vào children của AdminLayout
 // kèm handle.crumb để có breadcrumb.
 export const router = createBrowserRouter([
+  // Đăng nhập toàn màn hình, không có header chung (theo openevent).
+  { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   {
     path: '/',
     element: <Layout />,
     children: [
-      { index: true, element: <HomePage /> },
-      { path: 'login', element: <LoginPage /> },
+      // Không có trang chủ riêng: vào thẳng danh sách sự kiện (như openevent).
+      { index: true, element: <Navigate to="/events" replace /> },
       { path: 'events', element: <EventsPage /> },
       { path: 'events/:id', element: <EventDetailPage /> },
       {
@@ -40,6 +49,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'orders', element: <MyOrdersPage /> },
           { path: 'tickets', element: <MyTicketsPage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
           { path: 'payments/result', element: <PaymentResultPage /> },
           { path: 'payments/:id/mock', element: <MockPaymentPage /> },
         ],
@@ -98,7 +108,14 @@ export const router = createBrowserRouter([
               { path: ':id', element: <OrganizationDetailPage />, handle: { crumb: 'Chi tiết tổ chức' } },
             ],
           },
-          { path: 'check-in', element: <CheckInPage />, handle: { crumb: 'Check-in' } },
+          {
+            path: 'check-in',
+            handle: { crumb: 'Check-in' },
+            children: [
+              { index: true, element: <CheckInEventsPage /> },
+              { path: ':eventId', element: <CheckInScanPage />, handle: { crumb: 'Soát vé' } },
+            ],
+          },
         ],
       },
     ],

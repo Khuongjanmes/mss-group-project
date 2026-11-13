@@ -12,7 +12,7 @@ Nền tảng tổ chức và bán vé sự kiện cho môn MSS301. Yêu cầu v�
 | [eureka-server/](eureka-server/) | 8761 | — | TV1 @YuiGuende | Hoàn thành |
 | [api-gateway/](api-gateway/) | 8080 | — | TV1 @YuiGuende | Hoàn thành |
 | [identity-service/](identity-service/) | 8081 | PostgreSQL `identity_db` | TV1 @YuiGuende | Hoàn thành |
-| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Khung |
+| [notification-service/](notification-service/) | 8086 | MongoDB `notification_db` | TV1 @YuiGuende | Hoàn thành: email vé (#60), báo hủy sự kiện (#61), hộp thông báo (#62) |
 | [event-service/](event-service/) | 8082 | PostgreSQL `event_db` | TV2 @duev-dev | Hoàn thành |
 | [payment-service/](payment-service/) | 8085 | PostgreSQL `payment_db` | TV2 @duev-dev | Hoàn thành (chờ Order có `/internal/orders/{id}`) |
 | [ticket-service/](ticket-service/) | 8083 | PostgreSQL `ticket_db` | TV3 @TranQuan1105 | Hoàn thành (chờ Order giữ vé qua `/internal/reservations`) |
@@ -109,6 +109,17 @@ npm run build          # kiểm tra kiểu (tsc) rồi build
 ./mvnw -pl order-service -am verify     # một service
 ```
 
+**Postman:** import [postman/OpenEvent.postman_collection.json](postman/OpenEvent.postman_collection.json), điền `adminPassword` (giá trị `BOOTSTRAP_ADMIN_PASSWORD`) ở tab *Variables*, ô *Current value*, rồi **Run collection**, bỏ chọn thư mục *Thủ công*. Collection tự tạo tài khoản, sự kiện, loại vé, đơn và chạy hết luồng đặt vé, thanh toán, check-in, thông báo, hủy sự kiện, hoàn tiền (khoảng 110 request). Bước thanh toán dùng cổng giả lập: trước khi chạy, bật cổng giả lập bằng **Git Bash** (PowerShell, cmd không gán được biến rỗng) `PAYOS_CLIENT_ID= PAYOS_API_KEY= PAYOS_CHECKSUM_KEY= VNPAY_TMN_CODE= VNPAY_HASH_SECRET= docker compose up -d payment-service`, chạy xong thì `docker compose up -d payment-service` để về cấu hình thật. Trong Runner của Postman Desktop, **bỏ tick Keep variable values**, nếu không lần chạy sau dùng lại token của lần trước và hỏng các bước kiểm tra người dùng. Chạy bằng dòng lệnh:
+
+```bash
+npx newman run postman/OpenEvent.postman_collection.json --env-var adminPassword=<mật khẩu admin> \
+  --folder "0. Xác thực" --folder "1. Người dùng" --folder "2. Danh mục và địa điểm" --folder "3. Tổ chức" \
+  --folder "4. Sự kiện" --folder "5. Loại vé" --folder "6. Đặt vé và thanh toán" --folder "7. Check-in" \
+  --folder "8. Hủy sự kiện" --folder "9. Dọn dẹp tài khoản"
+```
+
+API mới thì thêm request vào collection (sửa bằng Postman rồi *Export* v2.1 đè lên file).
+
 ## Quy trình làm việc trên GitHub
 
 Mỗi việc đi theo vòng: **issue → nhánh → commit → PR → review → merge**. Không push thẳng `main` hay `develop`. Hướng dẫn từng bước, lệnh, checklist, release và cấu hình repo: [CONTRIBUTING.md](CONTRIBUTING.md). Người phụ trách từng service: bảng [Cấu trúc và phân công](#cấu-trúc-và-phân-công).
@@ -172,6 +183,9 @@ Tất cả đi qua Gateway. Chi tiết request và response xem Swagger của Id
 | POST | `/api/auth/register` | Công khai | Đăng ký, trả token |
 | POST | `/api/auth/login` | Công khai | Đăng nhập |
 | POST | `/api/auth/google` | Công khai | Đăng nhập bằng `idToken` của Google Identity Services |
+| GET | `/api/auth/google/config` | Công khai | `{clientId}` cho nút Google của SPA (đọc lúc chạy); rỗng khi chưa đặt `GOOGLE_CLIENT_ID`. Google Cloud Console cần Authorized JavaScript origins có `http://localhost:5173` và domain khi deploy |
+| POST | `/api/auth/forgot-password` | Công khai | `{"email"}`: luôn 202 (không cho dò email). Tài khoản dùng mật khẩu, không bị khóa thì tạo token dùng một lần, hết hạn sau 30 phút (chỉ lưu bản băm), phát `PasswordResetRequested` để Notification gửi email có link `<FRONTEND_URL>/reset-password?token=`. Cần `MAIL_*` trong `.env` |
+| POST | `/api/auth/reset-password` | Công khai | `{"token", "newPassword"}`: đổi mật khẩu, thu hồi mọi refresh token; token sai, đã dùng hoặc hết hạn trả 400 `RESET_TOKEN_INVALID` |
 | POST | `/api/auth/refresh` | Công khai | Đổi refresh token lấy cặp token mới |
 | POST | `/api/auth/logout` | Công khai | Thu hồi refresh token |
 | GET, PUT | `/api/users/me` | Đăng nhập | Xem, sửa hồ sơ |
@@ -192,9 +206,10 @@ Lưu ý cho SPA:
 
 | Method | Đường dẫn | Quyền | Mô tả |
 | --- | --- | --- | --- |
-| GET | `/api/events?keyword&category&city&from&to&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601 |
+| GET | `/api/events?keyword&category&city&from&to&timeline&page&size` | Công khai | Tìm sự kiện PUBLISHED; `category` là slug, `from`/`to` dạng ISO-8601. `timeline` (`UPCOMING`, `ONGOING`, `ENDED`) cho các tab của trang sự kiện; `ENDED` gồm cả sự kiện COMPLETED, mới kết thúc trước |
 | GET | `/api/events/{id}` | Công khai | Sự kiện chưa công bố chỉ người quản lý, STAFF và ADMIN xem được |
 | GET | `/api/events/my?status` | Đăng nhập, trừ ADMIN | Sự kiện mình làm HOST, mọi trạng thái |
+| GET | `/api/events/check-in` | Đăng nhập, trừ ADMIN | Sự kiện mình soát vé được (HOST, STAFF, OWNER/MANAGER của tổ chức), đã công bố hoặc vừa kết thúc trong 24 giờ, sớm nhất trước |
 | GET | `/api/events/admin?keyword&status` | ADMIN | Mọi sự kiện, ví dụ `status=PENDING_APPROVAL` để duyệt |
 | POST, PUT, DELETE | `/api/events`, `/api/events/{id}` | Người quản lý sự kiện | Tạo nháp, `organizationId` không bắt buộc; sửa, xóa khi DRAFT hoặc REJECTED |
 | PUT | `/api/events/{id}/submit` | Người quản lý sự kiện | DRAFT/REJECTED → PENDING_APPROVAL |
@@ -215,7 +230,7 @@ Lưu ý cho SPA:
 | POST, PUT, DELETE | `/api/categories`, `/api/categories/{id}` | ADMIN | Không xóa được danh mục đang dùng |
 | GET | `/api/venues?city`, `/api/venues/{id}` | Công khai | Địa điểm |
 | POST, PUT, DELETE | `/api/venues`, `/api/venues/{id}` | ADMIN | Thêm, sửa, xóa; không xóa được địa điểm đang dùng |
-| GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket |
+| GET | `/internal/events/{id}` | Nội bộ | `id, organizerId, title, status, startTime, endTime` cho Order và Ticket; thêm `venueName, venueAddress, venueCity` cho email vé của Notification |
 | GET | `/internal/events/{id}/access?userId` | Nội bộ | `canManage, canCheckIn`: Ticket và Order dùng để kiểm tra quyền thay vì so `organizerId` |
 
 "Người quản lý" sự kiện là HOST (`organizerId`), hoặc OWNER/MANAGER của tổ chức sở hữu sự kiện; MEMBER chỉ quản lý sự kiện mình làm HOST. Bảng quyền đầy đủ ở mục 1.2 của [requirement.md](requirement.md).
@@ -233,6 +248,7 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 | POST | `/api/payments/{id}/mock-result` | Người trả tiền | `{"success"}`: chỉ với giao dịch cổng giả lập |
 | GET | `/api/payments?status&page&size` | ADMIN | Mọi giao dịch, mới nhất trước |
 | PUT | `/api/payments/{id}/refunded` | ADMIN | REFUND_PENDING → REFUNDED, sau khi đã hoàn tiền thủ công |
+| GET | `/api/payments/my?orderId=…&orderId=…` | Đăng nhập | Giao dịch của tôi cho các đơn này (tối đa 100), mới nhất trước; đơn của người khác không trả về. Trang Đơn của tôi dùng để hiện Đang hoàn tiền / Đã hoàn tiền |
 
 - **Cổng thanh toán**, chọn theo thứ tự:
   1. **payOS** khi có đủ `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`: người mua quét VietQR, tiền vào tài khoản ngân hàng đã liên kết ở my.payos.vn. payOS **không có sandbox**, thử bằng số tiền nhỏ.
@@ -250,7 +266,7 @@ Job mỗi phút chuyển sự kiện PUBLISHED đã qua `end_time` sang COMPLETE
 | POST | `/api/ticket-types` | Người quản lý sự kiện | `{eventId, name, price, totalQuantity, saleStart, saleEnd}`; mở bán kết thúc trước khi sự kiện bắt đầu (BR-07) |
 | PUT, DELETE | `/api/ticket-types/{id}` | Người quản lý sự kiện | Sự kiện lấy từ loại vé trong DB. Không giảm tổng dưới đã bán cộng đang giữ (BR-06); chỉ xóa loại chưa từng được giữ |
 | GET | `/api/tickets/my` | Đăng nhập | Vé của tôi, mới nhất trước; `code` dùng làm QR |
-| POST | `/api/tickets/check-in` | Người quản lý sự kiện, STAFF | `{"code"}`: mỗi vé một lần, trong những ngày diễn ra (BR-09) |
+| POST | `/api/tickets/check-in` | Người quản lý sự kiện, STAFF | `{"code", "eventId"}`: mỗi vé một lần, trong những ngày diễn ra (BR-09). `eventId` (không bắt buộc) là sự kiện đang soát, vé sự kiện khác trả 409 `TICKET_NOT_IN_EVENT`. Trả họ tên, email người mua; quét lại trả 409 `ALREADY_CHECKED_IN` kèm giờ và người đã soát |
 | GET | `/api/tickets?eventId`, `/api/tickets/stats?eventId` | Người quản lý sự kiện | Người tham dự (họ tên, email từ Identity); đã bán, đang giữ, đã check-in theo loại vé |
 | POST | `/internal/reservations` | Nội bộ | `{orderId, items:[{ticketTypeId, quantity}]}`: giữ vé 10 phút, tất cả hoặc không; hết vé hoặc chưa mở bán trả 409; gọi lại cùng `orderId` trả phần đã giữ. Trả `unitPrice` để Order tính tiền |
 
@@ -300,3 +316,23 @@ Mã lỗi của `POST /api/orders`:
 
   "Trả trước hạn" so `occurredAt` của Payment với `expiresAt`. Message trùng bị bỏ qua theo `messageId` (`processed_messages`, BR-11). Đơn được khóa dòng trước khi đổi trạng thái, nên tiền về đúng lúc người dùng hủy thì chỉ một bên thắng; test `paymentRacingCancelEndsInOneConsistentOutcome`. Mọi message phát sau khi commit.
 - **Sự kiện bị hủy (KB-5):** nhận `EventCancelled` thì mọi đơn PENDING và PAID của sự kiện chuyển CANCELLED, trả lại quota; đơn PAID phát `OrderRefundRequested` (`EVENT_CANCELLED`) để Payment chuyển REFUND_PENDING (BR-10). Đơn EXPIRED, CANCELLED giữ nguyên. Không phát `OrderCancelled` vì Ticket tự hủy vé và nhả vé giữ khi nhận `EventCancelled`. Tiền về sau khi sự kiện bị hủy được hoàn như thanh toán trên đơn CANCELLED.
+
+## Notification
+
+| Method | Đường dẫn | Quyền | Mô tả |
+| --- | --- | --- | --- |
+| GET | `/api/notifications/my?page&size` | Đăng nhập | Thông báo của tôi, mới nhất trước. `size` 1–100, mặc định 20. Trả `{content, page, size, totalElements, totalPages, unreadCount}`; mỗi thông báo `id, type (TICKET_ISSUED/EVENT_CANCELLED), title, content, channel, read, sentAt` |
+| GET | `/api/notifications/my/unread-count` | Đăng nhập | `{unreadCount}` cho chuông trên thanh điều hướng (SPA hỏi mỗi 60 giây và khi quay lại tab) |
+| PATCH | `/api/notifications/{id}/read` | Người nhận | 204, gọi lại không lỗi. Thông báo của người khác: 404 `NOTIFICATION_NOT_FOUND` |
+
+SPA: chuông cạnh tài khoản (không hiện với Admin) với số chưa đọc và 5 thông báo mới nhất; trang `/notifications`. Bấm thông báo thì đánh dấu đã đọc và mở Vé của tôi (vé đã phát) hoặc Đơn của tôi (sự kiện bị hủy).
+
+Service nhận message từ RabbitMQ:
+
+| Message nhận | Notification làm gì |
+| --- | --- |
+| `TicketIssued` (KB-4) | Hỏi Identity email người mua (`/internal/users/{id}`), hỏi Event tên, giờ, địa điểm (`/internal/events/{id}`); gửi email HTML, mỗi vé một ảnh QR nhúng (nội dung QR là mã vé, giống trang "Vé của tôi"); lưu thông báo `TICKET_ISSUED` vào collection `notifications` |
+| `TicketsCancelled` (KB-5) | Bỏ trùng danh sách người mua, hỏi Identity email theo lô (`POST /internal/users/batch`, tối đa 500 id mỗi lần), hỏi Event tên, giờ, địa điểm; gửi mỗi người một email báo hủy (vé không còn dùng được, đơn đã thanh toán chờ hoàn tiền, nút "Xem đơn của tôi"); lưu thông báo `EVENT_CANCELLED`. Tài khoản không còn tồn tại thì bỏ qua |
+
+- **Không gửi trùng (BR-11):** unique index `(messageId, userId)` trên `notifications`; người đã có thông báo của message thì bỏ qua. Mỗi người được gửi email rồi lưu ngay, nên Identity, Event hoặc máy chủ mail lỗi giữa chừng thì message được thử lại (chờ 2, 6, 18, 54 giây) mà người đã nhận không bị gửi lần hai; hết lượt thử thì vào `notification-service.events.dlq`.
+- **Cấu hình mail:** `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` trong `.env` (xem `.env.example`, ví dụ Gmail với App password). Để trống `MAIL_HOST` thì không gửi email, thông báo vẫn được lưu với `channel = IN_APP`.

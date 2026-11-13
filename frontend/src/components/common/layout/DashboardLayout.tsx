@@ -41,7 +41,9 @@ export function DashboardLayout({
 
 // SidebarProvider persists the open state in this cookie; restore it on reload.
 // Falls back to open where there is no document (SSR, prerender).
+// Điện thoại (soát vé) luôn mở trang với sidebar đóng, không thì nó chiếm gần hết màn hình.
 function readSidebarOpen() {
   if (typeof document === 'undefined') return true;
+  if (!window.matchMedia('(min-width: 768px)').matches) return false;
   return !document.cookie.split('; ').includes('sidebar_state=false');
 }

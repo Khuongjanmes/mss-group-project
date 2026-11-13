@@ -26,6 +26,7 @@ public final class Messaging {
     public static final String ORDER_REFUND_REQUESTED = "order.refund-requested";
     public static final String TICKET_ISSUED = "ticket.issued";
     public static final String TICKETS_CANCELLED = "tickets.cancelled";
+    public static final String PASSWORD_RESET_REQUESTED = "identity.password-reset-requested";
 
     private Messaging() {
     }

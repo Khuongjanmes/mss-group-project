@@ -13,6 +13,7 @@ class MessagingConfig {
 
     @Bean
     Declarables notificationQueue() {
-        return Messaging.queueWithBindings(QUEUE, Messaging.TICKET_ISSUED, Messaging.TICKETS_CANCELLED);
+        return Messaging.queueWithBindings(QUEUE, Messaging.TICKET_ISSUED, Messaging.TICKETS_CANCELLED,
+                Messaging.PASSWORD_RESET_REQUESTED);
     }
 }

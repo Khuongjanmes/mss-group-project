@@ -1,15 +1,17 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 
 import { login } from '@/api/auth';
 import { errorMessage } from '@/api/client';
+import { AuthShell } from '@/auth/AuthShell';
+import { GoogleSignInButton } from '@/auth/GoogleSignInButton';
 import { homePathFor, safeRedirect, setSession, useSession } from '@/auth/session';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 
-// shortcut: chỉ đăng nhập email + mật khẩu; đăng ký, Google, quên mật khẩu do TV1 làm.
+/** Đăng nhập theo LoginPage của openevent: nền cam, logo, thẻ đăng nhập ở giữa. */
 export default function LoginPage() {
   const session = useSession();
   const navigate = useNavigate();
@@ -39,44 +41,54 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="mx-auto max-w-sm py-8">
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <h1 className="mb-1 text-2xl font-bold tracking-tight">Đăng nhập</h1>
-        <p className="mb-6 text-sm text-muted-foreground">Dùng tài khoản OpenEvent của bạn.</p>
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
+    <AuthShell title="Chào mừng bạn" description="Đăng nhập bằng tài khoản OpenEvent để mua vé và check-in sự kiện.">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="ban@example.com"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
             <Label htmlFor="password">Mật khẩu</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+            <Link to="/forgot-password" className="text-sm font-medium text-accent-foreground hover:underline">
+              Quên mật khẩu?
+            </Link>
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <Button type="submit" className="w-full" disabled={submitting || !email || !password}>
-            {submitting && <Spinner />}
-            Đăng nhập
-          </Button>
-        </form>
-      </div>
-    </section>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <Button type="submit" className="h-11 w-full rounded-full font-semibold" disabled={submitting || !email || !password}>
+          {submitting && <Spinner />}
+          Đăng nhập
+        </Button>
+      </form>
+      {/* Có phiên là trang tự chuyển về `redirect`, nên chỉ cần lưu phiên. */}
+      <GoogleSignInButton onSignedIn={setSession} />
+      <p className="text-center text-sm text-muted-foreground">
+        Chưa có tài khoản?{' '}
+        <Link to={{ pathname: '/register', search: searchParams.toString() }} className="font-semibold text-accent-foreground hover:underline">
+          Đăng ký
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

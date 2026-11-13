@@ -14,6 +14,33 @@ export async function login(email: string, password: string): Promise<Session> {
   return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
 }
 
+/** Tạo tài khoản và đăng nhập luôn (server trả token như khi đăng nhập). */
+export async function register(fullName: string, email: string, password: string): Promise<Session> {
+  const { data } = await api.post<AuthResponse>('/api/auth/register', { fullName, email, password });
+  return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
+}
+
+/** Đăng nhập (hoặc tạo tài khoản lần đầu) bằng `credential` mà nút Google trả về. */
+export async function loginWithGoogle(idToken: string): Promise<Session> {
+  const { data } = await api.post<AuthResponse>('/api/auth/google', { idToken });
+  return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
+}
+
+/** Client ID của Google lấy từ Identity lúc chạy; rỗng là chưa cấu hình. */
+export async function googleClientId(): Promise<string> {
+  return (await api.get<{ clientId: string }>('/api/auth/google/config')).data.clientId;
+}
+
+/** Luôn thành công dù email có tài khoản hay không (server không cho dò email). */
+export async function forgotPassword(email: string): Promise<void> {
+  await api.post('/api/auth/forgot-password', { email });
+}
+
+/** Đặt mật khẩu mới bằng token trong email; server thu hồi mọi phiên đăng nhập cũ. */
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await api.post('/api/auth/reset-password', { token, newPassword });
+}
+
 /** Thu hồi refresh token trên server. */
 export async function logout(refreshToken: string): Promise<void> {
   await api.post('/api/auth/logout', { refreshToken });

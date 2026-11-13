@@ -130,6 +130,12 @@ class PaymentApiIT extends PaymentIntegrationTest {
         Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
                 assertThat(send("GET", path, null, buyer).text("status")).isEqualTo("REFUND_PENDING"));
         assertThat(send("GET", path, null, buyer).text("refundReason")).isEqualTo("Sự kiện bị hủy");
+        // Trang Đơn của tôi: người mua thấy giao dịch của đơn mình, người khác không thấy.
+        String mine = "/api/payments/my?orderId=" + orderId + "&orderId=" + UUID.randomUUID();
+        assertThat(send("GET", mine, null, buyer).body().valueStream().map(p -> p.path("status").asString()))
+                .containsExactly("REFUND_PENDING");
+        assertThat(send("GET", mine, null, stranger).body().size()).isZero();
+        assertThat(send("GET", "/api/payments/my", null, buyer).status()).isEqualTo(400);
         Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(jdbc.queryForObject(
                 "select count(*) from processed_messages where message_id = ?", Integer.class, request.messageId()))
                 .isEqualTo(1));

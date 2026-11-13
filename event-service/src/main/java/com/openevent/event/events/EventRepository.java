@@ -2,6 +2,7 @@ package com.openevent.event.events;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -27,6 +28,19 @@ public interface EventRepository extends JpaRepository<Event, UUID>, JpaSpecific
 
     boolean existsByOrganization_IdAndOrganizerIdAndStatusIn(UUID organizationId, UUID organizerId,
             Collection<EventStatus> statuses);
+
+    /**
+     * Sự kiện người dùng check-in được (BR-09: HOST, STAFF, OWNER/MANAGER của tổ chức), đã công bố và chưa qua
+     * {@code since}, sớm nhất trước.
+     */
+    @EntityGraph(attributePaths = {"category", "venue", "organization"})
+    @Query("select e from Event e where e.status in :statuses and e.endTime > :since and (e.organizerId = :userId "
+            + "or :userId member of e.staff or exists (select 1 from Organization o join o.members m "
+            + "where o = e.organization and key(m) = :userId "
+            + "and m.role <> com.openevent.event.organization.OrganizationRole.MEMBER)) "
+            + "order by e.startTime, e.id")
+    List<Event> findCheckInable(@Param("userId") UUID userId, @Param("statuses") Collection<EventStatus> statuses,
+            @Param("since") Instant since);
 
     /** BR-05: sự kiện đã công bố quá giờ kết thúc chuyển sang COMPLETED. */
     @Modifying
