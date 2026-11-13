@@ -14,6 +14,12 @@ export async function login(email: string, password: string): Promise<Session> {
   return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
 }
 
+/** Tạo tài khoản và đăng nhập luôn (server trả token như khi đăng nhập). */
+export async function register(fullName: string, email: string, password: string): Promise<Session> {
+  const { data } = await api.post<AuthResponse>('/api/auth/register', { fullName, email, password });
+  return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
+}
+
 /** Thu hồi refresh token trên server. */
 export async function logout(refreshToken: string): Promise<void> {
   await api.post('/api/auth/logout', { refreshToken });
