@@ -56,7 +56,7 @@ class GatewaySecurityConfig {
 
     private static final String[] PUBLIC_READ_ENDPOINTS = {
             "/api/events/**", "/api/categories/**", "/api/venues/**", "/api/ticket-types/**",
-            "/api/payments/vnpay-return"};
+            "/api/payments/vnpay-return", "/api/auth/google/config"};
 
     @Bean
     SecurityWebFilterChain securityFilterChain(ServerHttpSecurity http, ReactiveJwtDecoder decoder,

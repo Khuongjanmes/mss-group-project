@@ -183,6 +183,7 @@ Tất cả đi qua Gateway. Chi tiết request và response xem Swagger của Id
 | POST | `/api/auth/register` | Công khai | Đăng ký, trả token |
 | POST | `/api/auth/login` | Công khai | Đăng nhập |
 | POST | `/api/auth/google` | Công khai | Đăng nhập bằng `idToken` của Google Identity Services |
+| GET | `/api/auth/google/config` | Công khai | `{clientId}` cho nút Google của SPA (đọc lúc chạy); rỗng khi chưa đặt `GOOGLE_CLIENT_ID`. Google Cloud Console cần Authorized JavaScript origins có `http://localhost:5173` và domain khi deploy |
 | POST | `/api/auth/refresh` | Công khai | Đổi refresh token lấy cặp token mới |
 | POST | `/api/auth/logout` | Công khai | Thu hồi refresh token |
 | GET, PUT | `/api/users/me` | Đăng nhập | Xem, sửa hồ sơ |

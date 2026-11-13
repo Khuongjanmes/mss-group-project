@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { login } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { AuthShell } from '@/auth/AuthShell';
+import { GoogleSignInButton } from '@/auth/GoogleSignInButton';
 import { homePathFor, safeRedirect, setSession, useSession } from '@/auth/session';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,8 @@ export default function LoginPage() {
           Đăng nhập
         </Button>
       </form>
+      {/* Có phiên là trang tự chuyển về `redirect`, nên chỉ cần lưu phiên. */}
+      <GoogleSignInButton onSignedIn={setSession} />
       <p className="text-center text-sm text-muted-foreground">
         Chưa có tài khoản?{' '}
         <Link to={{ pathname: '/register', search: searchParams.toString() }} className="font-semibold text-accent-foreground hover:underline">

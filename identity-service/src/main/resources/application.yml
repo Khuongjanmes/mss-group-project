@@ -39,6 +39,7 @@ openevent:
   security:
     public-paths:
       - POST /api/auth/**
+      - GET /api/auth/google/config
   jwt:
     # Bắt buộc. Cùng giá trị với API Gateway, tối thiểu 32 byte.
     secret: ${JWT_SECRET}
