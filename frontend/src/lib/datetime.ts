@@ -49,6 +49,18 @@ export function formatDateRange(start: string, end: string): string {
   return `${formatDateTime(start)} – ${formatDateTime(end)}`;
 }
 
+/** Thông báo: `vừa xong`, `5 phút trước`, `3 giờ trước`, `2 ngày trước`; từ 7 ngày trở đi thì ghi ngày giờ. */
+export function formatRelative(iso: string, now: number = Date.now()): string {
+  const minutes = Math.floor((now - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return 'vừa xong';
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} ngày trước`;
+  return formatDateTime(iso);
+}
+
 const pad = (value: number) => String(value).padStart(2, '0');
 
 /** ISO → giá trị cho `<input type="datetime-local">` theo giờ máy người dùng. */

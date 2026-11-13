@@ -95,8 +95,8 @@ function Result({ icon, title, children }: { icon: ReactNode; title: string; chi
         {icon}
         <h1 className="text-xl font-bold">{title}</h1>
         <div className="text-sm text-muted-foreground">{children}</div>
-        <Link to="/" className="text-sm font-medium text-accent-foreground hover:underline">
-          Về trang chủ
+        <Link to="/events" className="text-sm font-medium text-accent-foreground hover:underline">
+          Xem sự kiện
         </Link>
       </CardContent>
     </Card>
