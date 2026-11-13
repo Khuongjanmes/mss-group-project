@@ -1,7 +1,14 @@
 # Deploy lên EC2 khi merge vào main (release), hoặc chạy tay ở tab Actions.
-# 1. Build image 8 service + web (SPA + Caddy) trên runner, đẩy lên GHCR với tag là commit SHA.
-# 2. SSH vào EC2: lấy code main (compose, script khởi tạo DB), kéo đúng image của commit, khởi động lại.
-# Máy chủ không build gì nên đủ RAM cho các service.
+# 1. plan: so commit này với commit của lần deploy thành công gần nhất để biết image nào cần build.
+#    - Sửa một service (hoặc frontend): chỉ build image đó.
+#    - Sửa common-lib, pom.xml gốc, Maven wrapper, Dockerfile, .dockerignore: build lại 8 service Java.
+#    - Sửa chính workflow này, chạy tay với rebuild_all, hoặc chưa từng deploy thành công: build lại tất cả.
+#    - Bỏ qua file *.md và code test (không nằm trong image).
+# 2. build: build image cần build, đẩy lên GHCR với tag là commit SHA.
+#    retag: image không đổi thì gắn thêm tag SHA mới vào đúng image đang chạy (không build lại).
+#    Image giữ nguyên digest nên compose không khởi động lại container của service đó.
+# 3. deploy: SSH vào EC2, lấy code main (compose, script khởi tạo DB), kéo image của commit, khởi động lại
+#    những container có image thay đổi. Máy chủ không build gì nên đủ RAM cho các service.
 # Secret cần có: EC2_HOST (Elastic IP), EC2_USER (ubuntu), EC2_SSH_KEY (nội dung file .pem).
 # Trên EC2: repo clone ở ~/openevent, file .env production nằm cạnh docker-compose.yml.
 name: Deploy
@@ -10,6 +17,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      rebuild_all:
+        description: "Build lại toàn bộ image, bỏ qua phát hiện thay đổi"
+        type: boolean
+        default: false
 
 # Hai lần deploy không chạy chồng lên nhau; lần sau chờ lần trước xong.
 concurrency:
@@ -19,24 +31,118 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  actions: read # plan đọc lần deploy thành công gần nhất
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.pick.outputs.base }}
+      build: ${{ steps.pick.outputs.build }}
+      retag: ${{ steps.pick.outputs.retag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # cần lịch sử để diff với commit đã deploy
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REBUILD_ALL: ${{ inputs.rebuild_all }}
+        run: |
+          set -euo pipefail
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          ALL='[
+            {"name":"eureka-server","context":".","service":"eureka-server"},
+            {"name":"api-gateway","context":".","service":"api-gateway"},
+            {"name":"identity-service","context":".","service":"identity-service"},
+            {"name":"event-service","context":".","service":"event-service"},
+            {"name":"ticket-service","context":".","service":"ticket-service"},
+            {"name":"order-service","context":".","service":"order-service"},
+            {"name":"payment-service","context":".","service":"payment-service"},
+            {"name":"notification-service","context":".","service":"notification-service"},
+            {"name":"web","context":"frontend","service":""}
+          ]'
+          ALL_NAMES=$(jq -r '.[].name' <<<"$ALL")
+          BACKEND=$(jq -r '.[] | select(.service != "") | .name' <<<"$ALL")
+
+          BASE=$(gh run list --workflow deploy.yml --branch main --status success --limit 1 \
+            --json headSha --jq '.[0].headSha // ""' || true)
+
+          declare -A pick=()
+          reason=""
+          if [ "${REBUILD_ALL:-}" = "true" ]; then
+            reason="chạy tay với rebuild_all"
+          elif [ -z "$BASE" ]; then
+            reason="chưa có lần deploy thành công nào"
+          elif ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            reason="không tìm thấy commit $BASE trong lịch sử"
+          fi
+
+          if [ -n "$reason" ]; then
+            echo "Build tất cả: $reason"
+            for n in $ALL_NAMES; do pick[$n]=1; done
+          else
+            echo "So với lần deploy thành công gần nhất: $BASE"
+            while IFS= read -r f; do
+              case "$f" in
+                *.md | */src/test/*) ;;
+                .github/workflows/deploy.yml) for n in $ALL_NAMES; do pick[$n]=1; done ;;
+                common-lib/* | pom.xml | .mvn/* | mvnw | Dockerfile | .dockerignore)
+                  for n in $BACKEND; do pick[$n]=1; done ;;
+                frontend/*) pick[web]=1 ;;
+                *)
+                  top="${f%%/*}"
+                  if grep -qx "$top" <<<"$BACKEND"; then pick[$top]=1; fi ;;
+              esac
+            done < <(git diff --name-only "$BASE" "$GITHUB_SHA")
+          fi
+
+          # Image không đổi nhưng không còn image của lần deploy trước (bị xóa, đổi tên) thì vẫn phải build.
+          build=() retag=()
+          for n in $ALL_NAMES; do
+            if [ -n "${pick[$n]:-}" ]; then
+              build+=("$n")
+            elif docker buildx imagetools inspect "ghcr.io/$OWNER/openevent-$n:$BASE" > /dev/null 2>&1; then
+              retag+=("$n")
+            else
+              echo "Không thấy image $n:$BASE, build lại."
+              build+=("$n")
+            fi
+          done
+
+          to_json() { printf '%s\n' "$@" | jq -R . | jq -sc 'map(select(. != ""))'; }
+          BUILD_NAMES=$(to_json "${build[@]}")
+          BUILD=$(jq -c --argjson names "$BUILD_NAMES" '[.[] | select(.name as $n | $names | index($n))]' <<<"$ALL")
+          RETAG=$(to_json "${retag[@]}")
+
+          {
+            echo "base=$BASE"
+            echo "build=$BUILD"
+            echo "retag=$RETAG"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Kế hoạch deploy"
+            echo "- So với: \`${BASE:-không có}\`${reason:+ ($reason)}"
+            echo "- Build: $(jq -r 'if length == 0 then "không có" else join(", ") end' <<<"$BUILD_NAMES")"
+            echo "- Giữ image cũ: $(jq -r 'if length == 0 then "không có" else join(", ") end' <<<"$RETAG")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build:
+    needs: plan
+    if: needs.plan.outputs.build != '[]'
     name: image (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - { name: eureka-server, context: ., service: eureka-server }
-          - { name: api-gateway, context: ., service: api-gateway }
-          - { name: identity-service, context: ., service: identity-service }
-          - { name: event-service, context: ., service: event-service }
-          - { name: ticket-service, context: ., service: ticket-service }
-          - { name: order-service, context: ., service: order-service }
-          - { name: payment-service, context: ., service: payment-service }
-          - { name: notification-service, context: ., service: notification-service }
-          - { name: web, context: frontend, service: "" }
+        include: ${{ fromJSON(needs.plan.outputs.build) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,8 +169,36 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
+  retag:
+    needs: plan
+    if: needs.plan.outputs.retag != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Chỉ chép manifest trên registry, không tải hay build image.
+      - env:
+          BASE: ${{ needs.plan.outputs.base }}
+          RETAG: ${{ needs.plan.outputs.retag }}
+        run: |
+          set -euo pipefail
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          for n in $(jq -r '.[]' <<<"$RETAG"); do
+            img="ghcr.io/$OWNER/openevent-$n"
+            echo "$n: $BASE -> $GITHUB_SHA"
+            docker buildx imagetools create -t "$img:$GITHUB_SHA" -t "$img:latest" "$img:$BASE"
+          done
+
   deploy:
-    needs: build
+    needs: [plan, build, retag]
+    # build hoặc retag có thể bị bỏ qua (không có gì để làm); chỉ dừng khi có job lỗi.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     env:
       EC2_HOST: ${{ secrets.EC2_HOST }}
