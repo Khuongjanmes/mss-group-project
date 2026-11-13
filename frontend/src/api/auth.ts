@@ -20,6 +20,17 @@ export async function register(fullName: string, email: string, password: string
   return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
 }
 
+/** Đăng nhập (hoặc tạo tài khoản lần đầu) bằng `credential` mà nút Google trả về. */
+export async function loginWithGoogle(idToken: string): Promise<Session> {
+  const { data } = await api.post<AuthResponse>('/api/auth/google', { idToken });
+  return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
+}
+
+/** Client ID của Google lấy từ Identity lúc chạy; rỗng là chưa cấu hình. */
+export async function googleClientId(): Promise<string> {
+  return (await api.get<{ clientId: string }>('/api/auth/google/config')).data.clientId;
+}
+
 /** Thu hồi refresh token trên server. */
 export async function logout(refreshToken: string): Promise<void> {
   await api.post('/api/auth/logout', { refreshToken });
