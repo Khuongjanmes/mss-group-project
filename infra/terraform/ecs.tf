@@ -130,11 +130,12 @@ locals {
     }
     identity-service = {
       port = 8081, cpu = 512, memory = 1024, count = 1, java = true
-      env = tomap(merge(local.db_env, {
+      # Phát PasswordResetRequested (quên mật khẩu) nên cần RabbitMQ như các service khác.
+      env = tomap(merge(local.db_env, local.mq_env, {
         GOOGLE_CLIENT_ID      = var.google_client_id
         BOOTSTRAP_ADMIN_EMAIL = var.bootstrap_admin_email
       }))
-      secrets = ["JWT_SECRET", "DB_PASSWORD", "BOOTSTRAP_ADMIN_PASSWORD"]
+      secrets = ["JWT_SECRET", "DB_PASSWORD", "RABBITMQ_PASSWORD", "BOOTSTRAP_ADMIN_PASSWORD"]
     }
     event-service = {
       port    = 8082, cpu = 512, memory = 1024, count = 1, java = true
