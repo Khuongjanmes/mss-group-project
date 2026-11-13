@@ -31,6 +31,16 @@ export async function googleClientId(): Promise<string> {
   return (await api.get<{ clientId: string }>('/api/auth/google/config')).data.clientId;
 }
 
+/** Luôn thành công dù email có tài khoản hay không (server không cho dò email). */
+export async function forgotPassword(email: string): Promise<void> {
+  await api.post('/api/auth/forgot-password', { email });
+}
+
+/** Đặt mật khẩu mới bằng token trong email; server thu hồi mọi phiên đăng nhập cũ. */
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await api.post('/api/auth/reset-password', { token, newPassword });
+}
+
 /** Thu hồi refresh token trên server. */
 export async function logout(refreshToken: string): Promise<void> {
   await api.post('/api/auth/logout', { refreshToken });

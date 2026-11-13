@@ -1,4 +1,4 @@
-import { CalendarX2, Ticket } from 'lucide-react';
+import { CalendarX2, KeyRound, Ticket } from 'lucide-react';
 
 import type { AppNotification, NotificationType } from '@/api/notifications';
 import { formatRelative } from '@/lib/datetime';
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 const ICON: Record<NotificationType, typeof Ticket> = {
   TICKET_ISSUED: Ticket,
   EVENT_CANCELLED: CalendarX2,
+  PASSWORD_RESET: KeyRound,
 };
 
 /** Một dòng thông báo, dùng chung cho chuông và trang Thông báo. Chưa đọc thì chữ đậm và có chấm cam. */
