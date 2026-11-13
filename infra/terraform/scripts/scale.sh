@@ -55,6 +55,8 @@ case "${1:-}" in
     echo "Chờ các service ổn định (thường 3-4 phút)..."
     aws ecs wait services-stable --cluster "$CLUSTER" --services $(names $REST)
     status
+    # Eureka vừa khởi động lại nên registry trống; Gateway lấy danh sách mới mỗi ~30 giây.
+    echo "Chờ thêm khoảng 1 phút trước khi dùng: trong lúc đó API có thể trả 503 vì Gateway chưa thấy service."
     ;;
   status)
     status
