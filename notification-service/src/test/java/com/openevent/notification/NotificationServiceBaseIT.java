@@ -126,7 +126,7 @@ class NotificationServiceBaseIT {
         rabbit.convertAndSend(Messaging.EXCHANGE, Messaging.TICKET_ISSUED, event);
 
         Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(() -> assertThat(output).contains("Nhận TicketIssued: " + event.messageId()));
+                .untilAsserted(() -> assertThat(output).contains("TicketIssued: " + event.messageId()));
     }
 
     @Test

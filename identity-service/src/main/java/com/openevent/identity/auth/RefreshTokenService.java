@@ -83,7 +83,8 @@ public class RefreshTokenService {
         log.info("Đã xóa {} refresh token hết hạn", deleted);
     }
 
-    private static String hash(String raw) {
+    /** SHA-256 hex; quên mật khẩu dùng chung. */
+    static String hash(String raw) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(raw.getBytes(StandardCharsets.UTF_8)));

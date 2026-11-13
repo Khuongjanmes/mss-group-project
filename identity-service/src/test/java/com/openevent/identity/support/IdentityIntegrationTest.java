@@ -6,6 +6,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.UUID;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -50,6 +51,10 @@ public abstract class IdentityIntegrationTest {
 
     @MockitoBean
     protected GoogleIdTokenVerifier googleVerifier;
+
+    /** Không có RabbitMQ trong test: bắt message Identity gửi (quên mật khẩu) thay vì gửi thật. */
+    @MockitoBean
+    protected RabbitTemplate rabbit;
 
     @LocalServerPort
     protected int port;

@@ -10,7 +10,9 @@ import Layout from './components/Layout';
 import EventManageDetailPage from './events/EventManageDetailPage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventsPage from './pages/EventsPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import RegisterPage from './pages/RegisterPage';
 import MockPaymentPage from './pages/MockPaymentPage';
 import MyOrdersPage from './pages/MyOrdersPage';
@@ -32,6 +34,8 @@ export const router = createBrowserRouter([
   // Đăng nhập toàn màn hình, không có header chung (theo openevent).
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   {
     path: '/',
     element: <Layout />,

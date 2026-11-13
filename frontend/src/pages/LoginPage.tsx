@@ -56,7 +56,12 @@ export default function LoginPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Mật khẩu</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="password">Mật khẩu</Label>
+            <Link to="/forgot-password" className="text-sm font-medium text-accent-foreground hover:underline">
+              Quên mật khẩu?
+            </Link>
+          </div>
           <Input
             id="password"
             type="password"
